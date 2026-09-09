@@ -14,9 +14,13 @@ and **13 points above the majority-class floor** on a hand-built, hand-labeled c
   <img src="docs/figures/results.png" alt="Model comparison and parameter-vs-accuracy scatter" width="880">
 </p>
 
-> *Archived research code (July 2024 – May 2025), built as an undergraduate major project at JUIT.
-> Read-only: the dataset is not publicly available and notebooks contain Colab-specific paths.
+> *Archived research code, developed July 2024 – May 2025 as an undergraduate major project at
+> JUIT. Read-only: the dataset is not publicly available and notebooks contain Colab-specific paths.
 > See [`docs/05_future_work.md`](docs/05_future_work.md) for how this would be built today.*
+>
+> *Note on git history: commits are dated September 2026 because the history was rewritten then to
+> remove scraped dataset content from stored notebook outputs. Dependencies are pinned to the
+> versions the work was developed against and are intentionally not updated.*
 
 ---
 

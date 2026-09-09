@@ -1,0 +1,12 @@
+# Archived research project (July 2024 - May 2025).
+#
+# Dependencies in requirements.txt are pinned to the versions the work was
+# actually developed against. Those pins document the original environment and
+# are intentionally not updated -- upgrading them would misrepresent what was
+# run, and the code is not deployed anywhere.
+#
+# Dependency scanning is therefore disabled. If you build on this work, resolve
+# dependencies fresh against current releases rather than reusing these pins.
+
+version: 2
+updates: []
