@@ -15,6 +15,19 @@ didn't work.
 
 ---
 
+## Documentation
+
+Detailed write-ups of each pipeline stage, written retrospectively — including what didn't work and
+what we'd do differently:
+
+| Document | Covers |
+|---|---|
+| [`docs/01_dataset.md`](docs/01_dataset.md) | Why no usable corpus existed, the no-budget constraint, scraping sources, collection volumes, deduplication, splits, class balance |
+| [`docs/02_preprocessing.md`](docs/02_preprocessing.md) | Perceptual-hash dedup, EasyOCR extraction and its failure modes, the T5 + Levenshtein correction stack |
+| [`docs/03_modeling.md`](docs/03_modeling.md) | Text baseline, frozen-CLIP + MLP architecture, three-encoder comparison, imbalance handling, Optuna search, abandoned variants |
+| [`docs/04_evaluation.md`](docs/04_evaluation.md) | Results, how to read them against the 80.9% floor, and everything that was never measured |
+| [`docs/05_retrospective.md`](docs/05_retrospective.md) | What was right for 2024, what was wrong at the time, and how VLMs change the design today |
+
 ## Table of Contents
 
 - [The Research Story](#the-research-story)
@@ -260,14 +273,24 @@ Notebook outputs are intentionally stripped (see below).
 
 ## Dataset & Responsible Use
 
-**The dataset is not distributed in this repository, and notebook outputs have been cleared.**
+**The dataset is not publicly available, and notebook outputs have been cleared.**
 
-This is deliberate. The corpus consists of scraped hate speech targeting a marginalized community.
-Publishing it — or rendered notebook outputs containing it — would redistribute that material to
-anyone browsing the repo, and would conflict with the source platforms' terms of service. The code
-is public; the harmful content is not.
+Two independent reasons:
 
-Researchers with a legitimate use may contact the author to discuss access.
+1. **Release has not been approved.** The dataset was produced under academic supervision at JUIT
+   and the supervising faculty have not authorized public release. That decision is theirs, and it
+   stands regardless of anything else here.
+2. **It would be the wrong thing to publish anyway.** The corpus is scraped hate speech targeting a
+   marginalized community. Publishing it — or notebook outputs rendering it — would redistribute
+   that material to anyone browsing the repo, and would conflict with the source platforms' terms of
+   service.
+
+The code is available; the harmful content is not. **Please do not request the dataset** — it is not
+mine to release.
+
+Everything needed to rebuild an equivalent corpus is documented: the collection sources and methods
+in [`docs/01_dataset.md`](docs/01_dataset.md), and the cleaning pipeline in
+[`docs/02_preprocessing.md`](docs/02_preprocessing.md).
 
 **If you build on this work:** treat the classifier as a *triage aid*, not an adjudicator. False
 positives on reclaimed in-group language are a known and serious failure mode for this class of
