@@ -1,158 +1,98 @@
-# 05 — Evaluation & Results
+# 04 — Evaluation & Results
 
-*Retrospective documentation. Reports what was measured, and is explicit about what the numbers do
-and do not support.*
+What was measured, and how to read it.
 
 ---
 
-## Headline results
+## Headline
 
-**Best configuration — CLIP `ViT-L/14@336px` → MLP head**
-(AdamW, lr 0.01, weight decay 0, dropout 0.4, LeakyReLU, Focal Loss, layers `[512, 256, 128]`):
+**CLIP `ViT-L/14@336px` -> MLP head** (AdamW, lr 0.01, weight decay 0, dropout 0.4, LeakyReLU,
+Focal Loss, layers `[512, 256, 128]`), evaluated on the held-out test split (~198 examples):
 
 | Metric | Score |
 |---|---|
-| Accuracy | **93.94%** |
+| **Accuracy** | **93.94%** |
 | Precision | 96.91% |
 | Recall | 94.58% |
 | F1 | 95.73% |
 | ROC-AUC | 0.9030 |
 
-Evaluated on the held-out test split (~198 examples).
-
-## Comparative results
+## Comparative
 
 | Model | Modality | Accuracy |
 |---|---|---|
 | Majority-class baseline | — | ~80.9% |
-| Text-only transformer (FRENK) | Text | ~86.87% |
 | CLIP `RN50x64` + MLP | Multimodal | 84.85% |
+| Text-only transformer (FRENK) | Text | ~86.87% |
 | CLIP `ViT-B/32` + MLP | Multimodal | 89.73% |
 | **CLIP `ViT-L/14@336px` + MLP** | **Multimodal** | **93.94%** |
 
-## How to read these numbers honestly
+![Results](figures/results.png)
 
-### The majority-class baseline is the number that matters
+## Reading the numbers
 
-The dataset is **80.9% positive**. A model that predicts "hateful" unconditionally scores **80.9%**.
+**Against the floor, not zero.** The dataset is 80.9% positive, so a constant predictor scores
+80.9%. The achievement is **+13 points over trivial**, not "93.94%". By the same measure `RN50x64`
+at 84.85% is only ~4 points above a constant predictor — which reframes it from "reasonable" to
+"barely working". **Any accuracy figure from this project should be quoted alongside the 80.9%
+floor.**
 
-So the real achievement is not "93.94% accuracy" — it is **+13 points over trivial**. And note that
-`RN50x64` at 84.85% is only ~4 points above a constant predictor, which reframes it from
-"reasonable" to "barely working."
+**ROC-AUC 0.9030 is the most honest single number.** Threshold-independent and less sensitive to
+class imbalance than accuracy, it is the figure that best supports "this model learned something
+real".
 
-**Any accuracy figure from this project should be quoted alongside the 80.9% floor.** Quoted alone,
-it is misleading.
+**The multimodal gain is directional, not isolated.** The text baseline and the multimodal model
+differ in modality *and* training corpus, so the ~7-point gap confounds the two. What the evidence
+supports: *a multimodal model trained on this meme corpus outperforms a text model trained on a
+general LGBT hate-speech corpus.* What it does not support: *adding vision yields +7 points.*
 
-### Precision, recall and F1 are positive-class, not macro
+## What the results support
 
-These were computed with `average="binary"` — i.e. **for the majority (hateful) class only**.
-
-Because the positive class holds 80.9% of the data, positive-class metrics are the *easy* metrics.
-Macro-averaged figures — which weight the 19.1% minority class equally — are **materially lower**.
-
-The 96.91% precision figure in particular describes performance on the abundant class. It says
-little about how the model handles the minority class, which is where the difficult, ambiguous
-content lives.
-
-**Macro metrics should have been the headline.** They weren't, and that is a reporting choice that
-flatters the result.
-
-### ROC-AUC 0.9030 is the most honest single number
-
-AUC is threshold-independent and less sensitive to class imbalance than accuracy. **0.903 is a
-genuinely good discrimination score** and is the figure that best supports "this model learned
-something real."
-
-That said: on an imbalanced problem, **AUPRC** (area under the precision–recall curve) is generally
-more informative than ROC-AUC, because ROC curves can look optimistic when negatives dominate the
-comparison space. We did not compute AUPRC.
-
-### The multimodal gain is not a controlled ablation
-
-The text baseline (~86.87%) and the multimodal model (93.94%) differ in **two** ways: modality *and*
-training corpus (FRENK vs. meme captions). The ~7-point gap therefore confounds "adding vision
-helps" with "these datasets differ."
-
-The claim the evidence supports is: *a multimodal model trained on this meme corpus outperforms a
-text model trained on a general LGBT hate-speech corpus.* The claim it does **not** support is:
-*adding the visual modality yields +7 points.*
-
-Fixing this requires only training the text baseline on meme OCR captions — cheap, and not done.
-
-## What was *not* measured
-
-Listed explicitly, because absence of evaluation is itself a result:
-
-| Not measured | Why it matters |
-|---|---|
-| **Macro-averaged P/R/F1** | The reported metrics favor the majority class |
-| **AUPRC** | More informative than ROC-AUC under imbalance |
-| **Confidence intervals** | 198 test examples → ±~3–4 points; small gaps may be noise |
-| **Multi-seed variance** | Single run per configuration; no stability estimate |
-| **k-fold cross-validation** | Would have been nearly free on cached embeddings |
-| **Confusion matrix analysis** | Which classes fail, and how, was never examined |
-| **Qualitative error analysis** | *Which memes* the model gets wrong — the most informative analysis available, never done |
-| **Reclaimed-language false-positive rate** | The single most consequential deployment failure mode |
-| **Adversarial robustness** | Character substitution, obfuscation, crops — all untested |
-| **Fairness / subgroup analysis** | No breakdown across content types or communities |
-| **Ablation of the OCR correction stack** | Its contribution to final accuracy is unknown |
-| **Ablation of fusion strategy** | Concatenation vs. alternatives never compared |
-
-## The evaluation-set size problem
-
-The test split is **~198 examples**. Consequences:
-
-- One misclassification ≈ **0.5 percentage points**.
-- The 95% confidence interval around 93.94% is roughly **±3–4 points**.
-- The `ViT-B/32` (89.73%) vs `ViT-L/14` (93.94%) gap is ~4 points — **plausibly real but not
-  statistically established** from a single split.
-- The `RN50x64` (84.85%) result is far enough below the others to be trustworthy as a ranking.
-
-**k-fold cross-validation was the correct protocol** for a dataset this size and would have cost
-minutes on precomputed embeddings. Its absence is the clearest evaluation weakness.
-
-## Test-case results in the project report — do not cite these
-
-The project report includes figures like "98% capture on explicit insults" and "95% on implicit
-statements." These come from **hand-constructed test sentences**, not held-out evaluation data.
-
-They are demonstrations, not measurements: the inputs were written by the same people who built the
-system, with no sampling protocol and no independent construction. **They should not be reported as
-model performance metrics.** They are excluded from the README for this reason.
-
-## Metric provenance and one discrepancy
-
-Numbers in this document come from the **project report** (`G101.pdf`), the submitted and defended
-artifact.
-
-One documented inconsistency: the report gives the text baseline at **~86.87%**, while a surviving
-notebook output shows **77%** on a held-out split. These are most likely different runs at different
-stages. The report takes precedence, but the discrepancy is recorded rather than smoothed over.
-
-More broadly: **results were never tracked in a proper experiment log.** Metrics live in report
-tables and notebook cell outputs, which is why reconstructing them required cross-referencing
-multiple sources. An experiment tracker (W&B, MLflow) or even a disciplined `results.csv` would have
-made every number in this document trivially verifiable.
-
-## What the results actually support
-
-Stated conservatively:
-
-✅ **Supported:**
-- A CLIP-embedding multimodal classifier substantially outperforms trivial baselines on this corpus
-  (93.94% vs 80.9%).
-- Vision-transformer encoders outperform the CNN encoder for this task, and the largest ViT performs
-  best.
+**Supported:**
+- The classifier substantially outperforms trivial baselines (93.94% vs 80.9%).
+- ViT encoders outperform the CNN encoder; the largest ViT performs best.
 - ROC-AUC 0.903 indicates genuine discriminative capability, not a degenerate classifier.
-- Automated hyperparameter search over loss functions surfaced a real, encoder-dependent
-  interaction.
+- Searching over loss functions surfaced a real, encoder-dependent interaction.
 
-❌ **Not supported:**
-- A precise quantification of the visual modality's contribution (confounded baseline).
-- Deployment readiness (untested on realistic class balance, no fairness or robustness evaluation).
+**Not supported:**
+- A precise quantification of the visual modality's contribution.
+- Deployment readiness — untested on realistic class balance, no fairness or robustness evaluation.
 - Statistical separation of the closer encoder comparisons.
-- Any claim about performance on ambiguous or contested content — those examples were removed from
-  the dataset before evaluation.
+- Any claim about ambiguous or contested content — those examples were removed before evaluation.
+
+---
+
+## Notes & Caveats
+
+<sub>
+
+**Metric choice.** Precision/recall/F1 were computed with `average="binary"` — i.e. for the majority
+(hateful) class only, which is the easy class at 80.9% prevalence. Macro-averaged figures are
+materially lower and should have been the headline. AUPRC is generally more informative than ROC-AUC
+under imbalance and was not computed.
+
+**Evaluation-set size.** ~198 test examples means one misclassification is ~0.5 points and the 95%
+confidence interval around 93.94% is roughly ±3–4 points. The `ViT-B/32` vs `ViT-L/14` gap (~4
+points) is plausibly real but not statistically established from a single split; the `RN50x64` gap
+is large enough to trust as a ranking. k-fold cross-validation was the correct protocol and would
+have cost minutes on cached embeddings.
+
+**Not measured.** Macro P/R/F1; AUPRC; confidence intervals; multi-seed variance; k-fold CV;
+confusion-matrix and qualitative error analysis; false-positive rate on reclaimed in-group language
+(the most consequential deployment failure mode); adversarial robustness; calibration;
+fairness/subgroup breakdowns; ablation of the OCR-correction stack; ablation of the fusion strategy.
+Absence of evaluation is itself a result — it bounds what can be claimed.
+
+**Test-case figures in the project report** ("98% capture on explicit insults", "95% on implicit")
+come from hand-constructed sentences written by the project team, not held-out data. They are
+demonstrations, not measurements, and are excluded from the README for that reason.
+
+**Provenance.** Figures come from the project report (the submitted, defended artifact). Results were
+never tracked in an experiment logger, so reconstructing them required cross-referencing the report
+against surviving notebook outputs — which is also why one discrepancy persists (text baseline
+~86.87% in the report vs 77% in a notebook output).
+
+</sub>
 
 ---
 

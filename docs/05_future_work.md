@@ -1,158 +1,107 @@
 # 05 — Future Work
 
-*What this project would look like if rebuilt today, and what the current state of the art offers
-that did not exist when it was built (July 2024 – May 2025).*
+What the current state of the art offers that did not exist when this was built (July 2024 – May
+2025), and how the project would be rebuilt today.
 
 ---
 
-## Why this section exists
+## Why the design is dated
 
-The pipeline in this repository — frozen CLIP embeddings, concatenation fusion, a small MLP head —
-was a defensible design under 2024 tooling and a zero-dollar budget. It is **not** what anyone
-should build now. The field moved, and the parts that moved are precisely the parts this project
-struggled with: multimodal fusion, OCR on stylized text, and labeling throughput.
+Frozen CLIP embeddings + concatenation + a small head was a defensible 2024 design under a
+zero-dollar budget. It is not what anyone should build now — and the parts that moved fastest are
+precisely the parts this project struggled with: **multimodal fusion, OCR on stylized text, and
+labeling throughput.**
 
-## Where the state of the art is now
+## Where the state of the art is
 
-### Vision-language models replaced the embed-then-classify pattern
+### Instruction-tuned VLMs replaced embed-then-classify
 
-The design here treats CLIP as a frozen feature extractor and learns a classifier on top. That was
-standard practice in 2022–2024. It has largely been superseded by **instruction-tuned
-vision-language models** that take an image and a text prompt and reason over both jointly:
+Treating CLIP as a frozen feature extractor with a learned head was standard practice in 2022–2024.
+It has largely been superseded by vision-language models that take an image and a prompt and reason
+over both jointly:
 
-| Model family | Relevance here |
+| Family | Relevance |
 |---|---|
-| **Qwen2.5-VL / Qwen3-VL** | Strong open-weight VLMs with notably good OCR and text-in-image handling |
-| **InternVL** | Competitive open-weight multimodal reasoning; strong on fine-grained visual detail |
-| **LLaVA / LLaVA-NeXT** | The reference open architecture for visual instruction tuning |
+| **Qwen2.5-VL / Qwen3-VL** | Strong open-weight VLMs, notably good OCR and text-in-image handling |
+| **InternVL** | Competitive open-weight multimodal reasoning, strong on fine visual detail |
+| **LLaVA / LLaVA-NeXT** | Reference open architecture for visual instruction tuning |
 | **Molmo, Pixtral, Gemma-3 vision** | Recent open-weight entrants with permissive licensing |
-| **Frontier APIs** (Claude, GPT, Gemini multimodal) | Strongest zero-shot multimodal reasoning; no training required |
+| **Frontier APIs** (Claude, GPT, Gemini) | Strongest zero-shot multimodal reasoning, no training required |
 
-The relevant capability is not "better image classification" — it is that these models **read the
-text inside the image and reason about its relationship to the imagery in one pass.** That is
-precisely the operation concatenated CLIP embeddings cannot perform.
+The relevant capability is not better image classification — it is that these models **read the text
+inside the image and reason about its relationship to the imagery in one pass.** That is exactly the
+operation concatenated CLIP embeddings cannot perform.
 
-### Benchmarks now exist for this exact task
+### Benchmarks now exist for this task
 
-When this project started, hateful-meme detection had one main public benchmark
-(**Meta's Hateful Memes Challenge**, 2020) plus scattered shared tasks. The space is better served
-now — **HarMeme / Harm-P**, **MAMI** (misogynous memes), **HatReD** (hateful meme *reasoning* and
-explanation), and multilingual efforts including **HOMO-MEX** for Spanish-language LGBTQ+ hate.
+At project start, hateful-meme detection had essentially one public benchmark (Meta's **Hateful
+Memes Challenge**, 2020). The space is better served now: **HarMeme/Harm-P**, **MAMI** (misogynous
+memes), **HatReD** (hateful meme *reasoning and explanation*), and multilingual efforts including
+**HOMO-MEX** for Spanish-language LGBTQ+ hate.
 
-Practical implication: a restart should **evaluate on established public benchmarks first**, then
-treat a custom corpus as a domain-specific supplement — the reverse of what we did.
+A restart should evaluate on established public benchmarks first, treating a custom corpus as a
+domain-specific supplement — the reverse of what was done here.
 
-### Parameter-efficient fine-tuning removed the compute wall
+### PEFT removed the compute wall
 
-The single hardest constraint here was compute: a 307M-parameter encoder could not be fine-tuned on
-free-tier Colab, which is why encoders stayed frozen. **LoRA / QLoRA** now make it feasible to
-fine-tune multi-billion-parameter VLMs on a single consumer GPU by training small low-rank adapters
-against a quantized base.
-
-The "we can't afford to fine-tune" constraint that shaped this entire architecture is largely gone.
+The hardest constraint was compute: a 307M-parameter encoder could not be fine-tuned on free-tier
+Colab, which is why encoders stayed frozen. **LoRA / QLoRA** now make it feasible to fine-tune
+multi-billion-parameter VLMs on a single consumer GPU via low-rank adapters over a quantized base.
+The constraint that shaped this entire architecture is largely gone.
 
 ## The rebuild, in order
 
-### Phase 1 — Establish the zero-shot baseline first
+**1. Establish the zero-shot baseline first.** Before training anything, measure a modern VLM
+zero-shot and few-shot on the existing 1,320 examples, reporting macro metrics and AUPRC. This may
+end the project — if zero-shot matches 93.94%, the trained pipeline has no justification. If it
+doesn't, it becomes the bar every subsequent model must beat, which is far more meaningful than the
+80.9% floor. *This inverts the original workflow: 2024 was collect → train → evaluate; 2026 is
+evaluate what exists → collect only where it fails.*
 
-**Before training anything**, measure how a modern VLM performs zero-shot and few-shot on the
-existing 1,320 examples. Report macro-averaged metrics and AUPRC.
+**2. Break the labeling bottleneck.** Dataset size bounded nearly every result, and labeling
+throughput bounded dataset size. VLM pre-labeling with human adjudication of low-confidence cases
+could plausibly cover an order of magnitude more data for the same effort. While doing it: keep
+contested items as soft labels or a hard-case benchmark; deliberately collect benign content to
+approach realistic class balance; version the dataset.
 
-This may end the project. If a zero-shot VLM matches or beats 93.94%, the trained pipeline has no
-justification, and the honest conclusion is that the task no longer requires a custom model.
+**3. Replace the fusion mechanism.** Fine-tune a VLM directly (LoRA/QLoRA) so the model attends
+jointly over image and caption natively — the fusion problem dissolves rather than being engineered
+around. If staying with frozen encoders for cost reasons, use cross-attention rather than
+concatenation. Either way, **drop the OCR correction stack** and let the VLM read the image text;
+modern VLMs handle stylized multi-panel meme text far better than 2024-era OCR, which removes one of
+the largest engineering components of the original pipeline.
 
-If it *doesn't*, this becomes the number every subsequent model must beat — which is a far more
-meaningful bar than the 80.9% majority-class floor.
+**4. Fix the evaluation protocol.** A like-for-like text-only ablation on the *same* corpus; k-fold
+CV with confidence intervals; macro metrics and AUPRC as headline figures; multi-seed runs; a test
+set at realistic class balance; confusion-matrix and qualitative error analysis.
 
-**Note this inverts the original workflow.** 2024: *collect data → train model → evaluate.*
-2026: *evaluate what already exists → collect data only where it fails.*
+**5. Evaluate what gates deployment.** False-positive rate on reclaimed in-group language — the
+dominant failure mode, and the one where errors do the most harm. Adversarial robustness (character
+substitution, leetspeak, text-in-image obfuscation, crops, re-encoding). Subgroup breakdowns.
+Calibration, so uncertain cases can be routed to humans.
 
-### Phase 2 — Break the labeling bottleneck
+**6. Explanation, not just classification.** A VLM can be prompted to *explain why* a meme is
+hateful, producing an auditable rationale. For moderation — where decisions are appealed and must be
+justified — this is far more useful than a scalar, and it addresses the interpretability gap
+directly. The **HatReD** dataset targets exactly this.
 
-Dataset size bounded nearly every result in this project, and labeling throughput bounded dataset
-size.
-
-Use a VLM to **pre-label at scale**, with humans adjudicating only low-confidence or disagreed
-cases. The same human effort that produced 1,320 labels could plausibly cover an order of magnitude
-more. Specific improvements to make while doing it:
-
-- **Keep contested items** as soft labels or a dedicated hard-case evaluation set, rather than
-  deleting them as we did.
-- **Deliberately collect benign content** to approach realistic class balance instead of inheriting
-  the 80.9/19.1 skew from a hate-focused search strategy.
-- **Version the dataset** so results are reproducible against a specific snapshot.
-
-### Phase 3 — Replace the fusion mechanism
-
-If a trained model is still warranted after Phase 1:
-
-- **Fine-tune a VLM directly** (LoRA/QLoRA) so the model attends jointly over image and caption
-  natively. The fusion problem dissolves rather than being engineered around.
-- If staying with frozen encoders for cost reasons, at minimum use **cross-attention fusion**
-  instead of concatenation, so the two modalities can condition on each other.
-- **Drop the OCR correction stack entirely** and let the VLM read the image text. Modern VLMs handle
-  stylized, low-contrast, multi-panel meme text substantially better than 2024-era OCR, and can be
-  prompted to preserve reading order. This removes one of the largest engineering components of the
-  original pipeline.
-
-### Phase 4 — Fix the evaluation protocol
-
-The most important upgrades are methodological, not architectural:
-
-- **A like-for-like text-only ablation** on the *same* corpus — the single fix that would make the
-  central multimodal claim clean.
-- **k-fold cross-validation with confidence intervals** — nearly free on cached embeddings, and the
-  only way to establish whether the encoder gaps are real.
-- **Macro-averaged metrics and AUPRC** as the headline figures, not positive-class metrics.
-- **Multi-seed runs** with reported variance.
-- **A test set at realistic class balance**, separate from the training distribution.
-- **Confusion matrix and qualitative error analysis** — cheap, and the most informative analysis
-  this project never did.
-
-### Phase 5 — Evaluate what actually matters for deployment
-
-None of this was measured, and all of it gates real use:
-
-- **False-positive rate on reclaimed in-group language.** The dominant failure mode for this class
-  of model, and the one where errors do the most harm — silencing the community the system exists to
-  protect is worse than missing a slur. This deserves to be a primary metric, not an afterthought.
-- **Adversarial robustness** — character substitution, leetspeak, text-in-image obfuscation, crops,
-  and re-encoding. Hate speech adapts to filters by construction.
-- **Subgroup breakdowns** across content types and target communities.
-- **Calibration** — a moderation triage system needs trustworthy confidence scores to route the
-  uncertain cases to humans.
-
-### Phase 6 — Explanation, not just classification
-
-A VLM can be prompted to **explain why** a meme is hateful, producing an auditable rationale rather
-than a scalar. For moderation — where decisions are appealed and must be justified — this is far
-more useful than a confidence value, and it directly addresses this project's interpretability gap.
-The **HatReD** dataset targets exactly this reasoning task.
-
-### Phase 7 — Infrastructure from day one
-
-- **Experiment tracking** (W&B / MLflow) rather than metrics living in notebook cell outputs. Every
-  number in [`04_evaluation.md`](04_evaluation.md) had to be reconstructed by cross-referencing the
-  project report against surviving notebooks — that should never have been necessary.
-- **Config-driven sweeps** instead of duplicated notebook cells.
-- **Seeded, versioned runs** tied to dataset snapshots.
+**7. Infrastructure from day one.** Experiment tracking (W&B/MLflow), config-driven sweeps, seeded
+and versioned runs tied to dataset snapshots.
 
 ## What carries forward
 
-Not everything here is superseded. These remain correct regardless of tooling:
+Not everything is superseded. These hold regardless of tooling:
 
-- **Deduplication before splitting.** Near-duplicate leakage across train/test invalidates results
-  no matter what model sits downstream. Perceptual hashing is still the right tool.
-- **Benchmarking multiple encoders under identical downstream conditions.** The finding that
-  `RN50x64` lost to a ViT with a quarter of its parameters only holds because the comparison was
-  controlled.
-- **Treating the loss function as a search parameter** rather than assuming Focal Loss suits
-  imbalance. It was selected for one encoder and not another — an interaction that a fixed choice
-  would have hidden.
-- **Independent dual labeling** on a subjective task, and treating the disagreement rate as a
-  measurement of task difficulty rather than an inconvenience.
-- **The class-balance caveat.** Reporting accuracy against the 80.9% majority-class floor is a
-  discipline that survives any architecture change.
+- **Deduplicate before splitting.** Near-duplicate leakage invalidates results under any
+  architecture; perceptual hashing is still the right tool.
+- **Benchmark encoders under identical downstream conditions.** The `RN50x64` finding only holds
+  because the comparison was controlled.
+- **Treat the loss function as a search parameter** rather than assuming Focal Loss suits imbalance —
+  it was selected for one encoder and not another.
+- **Independent dual labeling** on subjective tasks, treating the disagreement rate as a measurement
+  of task difficulty rather than an inconvenience.
+- **Quote accuracy against the majority-class floor.** A discipline that survives any architecture
+  change.
 
 ---
 

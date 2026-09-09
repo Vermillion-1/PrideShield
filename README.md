@@ -2,259 +2,176 @@
 
 **Multimodal detection of anti-LGBTQ+ hate speech in internet memes.**
 
-Memes are a hard case for content moderation. The image alone is often benign, the overlaid text
-alone is often benign, and the hostility exists only in their *combination* — which is precisely
-where unimodal classifiers fail. PrideShield builds a multimodal classifier for this content
-(**CLIP** visual + text embeddings → MLP head), benchmarks three vision encoders against each other
-and against a text-only transformer baseline, and — just as importantly — documents the parts that
-didn't work.
+Memes defeat text-only moderation: the image is often benign, the caption is often benign, and the
+hostility exists only in their combination. PrideShield fuses **CLIP** visual and text embeddings
+into an MLP classifier, benchmarks three vision encoders under identical conditions, and evaluates
+against a text-only transformer baseline.
 
-> **Status: archived research code (July 2024 – May 2025).** Built as an undergraduate major project
-> at JUIT. Preserved as-is for reproducibility and reference.
-> See **[`docs/05_future_work.md`](docs/05_future_work.md)** for how this would be built today.
+**Result: 93.94% accuracy / 0.9030 ROC-AUC** — roughly **7 points above a text-only transformer**
+and **13 points above the majority-class floor** on a hand-built, hand-labeled corpus.
 
----
+<p align="center">
+  <img src="docs/figures/results.png" alt="Model comparison and parameter-vs-accuracy scatter" width="880">
+</p>
 
-## Documentation
-
-Detailed write-ups of each pipeline stage, written after the fact — including the approaches that
-failed and why:
-
-| Document | Covers |
-|---|---|
-| [`docs/01_dataset.md`](docs/01_dataset.md) | Why no usable corpus existed, the no-budget constraint, scraping sources, collection volumes, deduplication, splits, class balance |
-| [`docs/02_preprocessing.md`](docs/02_preprocessing.md) | Perceptual-hash dedup, EasyOCR extraction and its failure modes, the T5 + Levenshtein correction stack |
-| [`docs/03_modeling.md`](docs/03_modeling.md) | Text baseline, frozen-CLIP + MLP architecture, three-encoder comparison, imbalance handling, Optuna search, abandoned variants |
-| [`docs/04_evaluation.md`](docs/04_evaluation.md) | Results, how to read them against the 80.9% floor, and everything that was never measured |
-| [`docs/05_future_work.md`](docs/05_future_work.md) | Current SOTA (VLMs, PEFT, modern benchmarks) and how this would be rebuilt today |
-
-## Table of Contents
-
-- [The Research Story](#the-research-story)
-- [Results](#results)
-- [Architecture](#architecture)
-- [Repository Structure](#repository-structure)
-- [Pipeline](#pipeline)
-- [Getting Started](#getting-started)
-- [Dataset & Responsible Use](#dataset--responsible-use)
-- [Limitations](#limitations)
-- [Future Scope](#future-scope)
-- [Citation](#citation)
-- [License](#license)
-
----
-
-## The Research Story
-
-### The constraint that shaped everything: no budget
-
-This project had **no funding for paid APIs, annotation services, or compute**. That single
-constraint determined the shape of the work more than any modeling decision:
-
-- **No paid API access** meant no Twitter/X firehose, no commercial moderation datasets, no
-  GPT-assisted labeling. Data had to come from free tiers and public endpoints — Reddit's PRAW free
-  tier, 4chan's public JSON API — supplemented by **Selenium-driven browser scraping** across
-  DuckDuckGo, Bing, and Google Images, because image search has no free bulk API.
-- **No annotation budget** meant **we labeled the dataset ourselves, by hand** — every meme read and
-  judged by two people independently.
-- **No dedicated compute** meant Google Colab's free tier, which ruled out fine-tuning the vision
-  encoders and pushed us toward *frozen CLIP embeddings + a small trainable head* — a decision made
-  for tractability first, and only justified on its merits afterward.
-
-Most of the elapsed project time went into **data acquisition and annotation, not modeling.** That
-is the honest shape of this work, and it is worth stating plainly because it is the shape of a lot
-of applied ML.
-
-### Building the dataset by hand
-
-There was no off-the-shelf corpus of anti-LGBTQ+ memes, so we built one:
-
-```
-  4 scraping sources          ~1,700 raw images
-  (Reddit, 4chan,      ──►    collected across                ──►  perceptual-hash
-   DDG/Bing/Google)           multiple sessions                    deduplication
-                                                                        │
-                                                                        ▼
-   1,320 final rows      ◄──  drop inter-annotator      ◄──   1,667 images dual-annotated
-   (train/val/test)          disagreements                     by hand (2 annotators)
-```
-
-Every step here was a problem we hit rather than a step we planned:
-
-- **Scrapers kept breaking.** Image search results are JavaScript-rendered, so simple HTTP scraping
-  returned nothing — hence Selenium. Different sources needed different CSS selector strategies,
-  and those selectors broke as pages changed.
-- **Massive duplication across sources.** The same handful of viral memes appear on every platform.
-  Naive collection produced a corpus that was mostly repeats, which would have leaked between
-  train and test splits. Fixed with **perceptual-hash deduplication** (`imagededup`) —
-  ~1,700 raw images collapsed to a genuinely distinct set.
-- **Reverse image search for provenance.** Some images were reposts with modified captions; we used
-  Selenium-driven reverse image search to check provenance where it mattered.
-- **OCR was the biggest quality bottleneck.** Meme text is stylized, low-contrast, and often
-  overlaid on busy backgrounds. EasyOCR output was frequently garbled — and since the caption is
-  half the multimodal signal, bad OCR poisons the model. We layered two corrections on top: a
-  **T5 model** for sequence-level correction, and **Levenshtein-distance spellchecking** for token
-  repair. This mattered more to final performance than most architectural choices.
-- **Annotation was slow and genuinely difficult.** Two annotators labeled independently. Agreement
-  was far from perfect — the ambiguous cases are ambiguous *to humans*, which is the honest signal
-  about the task's difficulty. We dropped disagreements rather than adjudicating them, which
-  bought label precision at the cost of removing the hardest examples (see
-  [Limitations](#limitations)).
-
-### What we tried on the modeling side
-
-**Text-only baseline first.** A DistilBERT/BERT-family transformer fine-tuned on a *public* English
-hate-speech benchmark (FRENK, LGBT subset), attention/hidden dropout 0.2, HuggingFace `Trainer`.
-This answered "how far does text alone get you?" → **~86.87%**.
-
-**Then the multimodal pipeline.** For each meme: embed the image with CLIP's vision encoder, embed
-the OCR caption with CLIP's text encoder, L2-normalize both, concatenate, and train an MLP head on
-the fused vector.
-
-**We benchmarked all three CLIP encoders** — not just the one that won — under identical downstream
-conditions, which is what makes the comparison meaningful.
-
-### What worked
-
-- **The larger Vision Transformer, decisively.** `ViT-L/14@336px` reached **93.94%**, roughly
-  **7 points above the text-only baseline** — evidence that the visual modality carries real signal
-  for this content, which was the project's core hypothesis.
-- **Focal Loss for class imbalance.** Implemented from scratch (the `(1 − p_t)^γ` down-weighting of
-  easy examples). We did *not* assume it was better — we let the Optuna search choose between it
-  and class-weighted CrossEntropy. It won for the ViT-L/14 configuration; class-weighted CE won for
-  ViT-B/32. That split is itself informative: the right imbalance strategy depended on the encoder.
-- **Automated hyperparameter search over hand-tuning.** A 30-trial **Optuna** study jointly tuned
-  optimizer, learning rate, weight decay, dropout, activation, loss function, and MLP width/depth.
-- **The OCR correction stack.** T5 + Levenshtein repair measurably improved the text half of the
-  embedding, and was one of the highest-leverage interventions in the whole pipeline.
-
-### What didn't work
-
-Recording these honestly, because they're the more interesting half:
-
-- **The CNN encoder lost badly — despite being the largest model.** `RN50x64` has ~336M parameters
-  and the widest embedding (1024-d), yet scored **84.85%** — *below* `ViT-B/32` at ~88M parameters
-  and 512 dimensions. More capacity did not mean better representations. For a task that depends on
-  relating overlaid text to image semantics, the ViT's global attention appears to matter more than
-  convolutional inductive bias or raw parameter count.
-- **Simple concatenation is a weak fusion mechanism.** Concatenating two frozen embedding vectors
-  cannot model *interaction* between modalities — which is exactly where meme hostility lives. It
-  is early fusion in its crudest form. We knew this was a limitation and accepted it because
-  training a real fusion module was out of reach on free-tier compute.
-- **A transformer-over-tabular-features fusion variant was prototyped and abandoned.** It didn't
-  outperform the plain MLP on a dataset this small; the extra capacity had nothing to learn from.
-- **Deeper/regularized MLP variants gave no consistent gain.** BatchNorm variants, L2 + early
-  stopping — all explored, none beat the Optuna-selected simple head.
-- **CLIP's 77-token context limit is a real constraint.** Long meme captions exceed it. Our
-  workaround — chunk the text and average the chunk embeddings — is informal and almost certainly
-  loses information.
-- **The dataset stayed small.** ~1,320 usable examples is not much for a nuanced classification
-  task, and it bounds every conclusion here. Scaling was a labor problem, not a technical one.
-
-### What we'd tell someone starting this today
-
-Frozen-CLIP-plus-a-head was a defensible 2024 design under real constraints. It is not what we would
-build now — see [Future Scope](#future-scope).
+> *Archived research code (July 2024 – May 2025), built as an undergraduate major project at JUIT.
+> Read-only: the dataset is not publicly available and notebooks contain Colab-specific paths.
+> See [`docs/05_future_work.md`](docs/05_future_work.md) for how this would be built today.*
 
 ---
 
 ## Results
 
-**Best configuration — CLIP `ViT-L/14@336px` → MLP head**, selected by Optuna
-(AdamW, lr 0.01, weight decay 0, dropout 0.4, LeakyReLU, Focal Loss):
+**Best configuration — CLIP `ViT-L/14@336px` → MLP head**, selected by a 30-trial Optuna study
+(AdamW, lr 0.01, weight decay 0, dropout 0.4, LeakyReLU, Focal Loss, layers `[512, 256, 128]`):
 
 | Metric | Score |
 |---|---|
-| Accuracy | **93.94%** |
+| **Accuracy** | **93.94%** |
 | Precision | 96.91% |
 | Recall | 94.58% |
 | F1 | 95.73% |
 | ROC-AUC | 0.9030 |
 
-**Vision encoder comparison** — all three run through the same downstream MLP and search procedure:
+**Encoder comparison** — all three run through the same head, search procedure and splits:
 
-| Encoder | Embedding dim | Params | Peak accuracy | Relative compute |
-|---|---|---|---|---|
-| `ViT-B/32` | 512 | ~88M | 89.73% | Low |
-| **`ViT-L/14@336px`** | 768 | ~307M | **93.94%** | High |
-| `RN50x64` | 1024 | ~336M | 84.85% | Very high |
+| Encoder | Embedding dim | Params | Accuracy |
+|---|---|---|---|
+| `RN50x64` (CNN) | 1024 | ~336M | 84.85% |
+| `ViT-B/32` | 512 | ~88M | 89.73% |
+| **`ViT-L/14@336px`** | 768 | ~307M | **93.94%** |
 
-**Text-only baseline:** ~86.87%.
+Reference points: majority-class floor **80.9%** · text-only transformer **~86.87%**.
 
-**Read these numbers alongside [Limitations](#limitations).** The dataset's class balance is
-inverted relative to real moderation traffic (a majority-class baseline already scores ~80.9%),
-precision/recall/F1 are positive-class rather than macro figures, and the text baseline was trained
-on a *different, external* corpus — so the ~7-point multimodal gap is indicative, not a controlled
-ablation.
+### Two findings worth stating
 
-## Architecture
+**1. More parameters did not mean better representations.** `RN50x64` has the most parameters
+(~336M) and the widest embedding (1024-d) — and finished **last**, ~5 points below a ViT with a
+quarter of its parameters. For a task requiring the model to relate overlaid text to image
+semantics, ViT's global self-attention outperformed convolutional inductive bias regardless of
+capacity.
 
-<p align="center">
-  <img src="docs/diagrams/data_flow_diagram.jpg" alt="Data flow diagram" width="720">
-</p>
+**2. The optimal class-imbalance strategy depended on the encoder.** Rather than assuming Focal Loss
+suits imbalanced data, the loss function was made a *search parameter*. Optuna selected **Focal
+Loss** for `ViT-L/14@336px` but **class-weighted CrossEntropy** for `ViT-B/32` — an interaction a
+fixed choice would have concealed.
 
-**Classifier head.** CLIP embeddings feed a compact MLP:
+---
+
+## Technical Work
+
+### Dataset — built from scratch, no budget
+
+No public corpus of anti-LGBTQ+ memes existed, and the project had **no funding** for paid APIs,
+annotation services, or compute. The corpus was built end-to-end:
+
+```
+6 collection methods attempted (3 failed)
+        │
+        ▼
+  ~1,700 raw images  ──►  perceptual-hash dedup  ──►  1,667 hand-labeled
+   (Reddit, 4chan,                                    (2 independent annotators)
+    DDG/Bing/Google)                                          │
+                                                              ▼
+                                                     1,320 final examples
+                                                     70/15/15 · 80.9%/19.1%
+```
+
+**Collection methods — including what failed:**
+
+| Method | Status | Why |
+|---|---|---|
+| Twitter/X via `twint` | ❌ | Broken by 2023 API changes; official API paid-only → X dropped as a source |
+| ScraperAPI (commercial) | ❌ | Never funded — the prototype still contains `'YOUR API KEY'` |
+| `requests` + BeautifulSoup on image search | ❌ | Results are JS-rendered; returns an empty shell |
+| Reddit PRAW / asyncpraw | ✅ | Free tier, rate-limited; async variant added for throughput |
+| 4chan public JSON API | ✅ | No auth required; highest hostile-content density |
+| Selenium → DDG/Bing/Google Images | ✅ | The only route to JS-rendered image results |
+
+The HTTP-scraping failure is what forced browser automation — Selenium drives a real browser, waits
+for render, scrolls to trigger lazy loading, then scrapes the live DOM. It worked, and it was the
+most maintenance-heavy component in the pipeline.
+
+→ [`docs/01_dataset.md`](docs/01_dataset.md)
+
+### Preprocessing — the quality-control layer
+
+**Perceptual-hash deduplication** was a correctness requirement, not housekeeping. The same viral
+memes appear across every platform; duplicates spanning a train/test boundary leak the test set and
+make reported accuracy meaningless. `imagededup` (pHash) catches re-encoded, cropped and watermarked
+variants that exact hashing misses.
+
+**OCR was the largest quality bottleneck.** Meme text is stylized, low-contrast, and spread across
+panels with no reading order. Since the caption is half the multimodal signal — and CLIP embeds
+nonsense confidently — bad OCR produces a *confidently wrong* text embedding. Two correction stages
+were layered on EasyOCR output: a **T5 sequence-to-sequence corrector** for structural damage
+(merged words, lost spacing), then **Levenshtein/spellchecker repair** for residual character errors.
+The edit-distance stage doubles as partial defense against deliberate misspelling used to evade
+keyword filters.
+
+→ [`docs/02_preprocessing.md`](docs/02_preprocessing.md)
+
+### Modeling — frozen encoders, searched head
+
+Free-tier compute ruled out fine-tuning a 307M-parameter encoder, fixing the architecture as
+**frozen CLIP + small trainable head**. The constraint had an upside: embeddings compute once and
+cache, after which every experiment trains in seconds — which is what made a three-encoder
+comparison and a 30-trial search affordable at all.
+
+```
+image ──► CLIP vision encoder (frozen) ──► L2-norm ─┐
+                                                     ├─► concat ─► MLP ─► {hateful, not}
+OCR text ► CLIP text encoder  (frozen) ──► L2-norm ─┘
+```
 
 ```
 Linear(embed_dim, 256) → ReLU → Dropout(0.4)
-    → Linear(256, 128) → ReLU → Dropout(0.4)
-        → Linear(128, 2)
+    → Linear(256, 128) → ReLU → Dropout(0.4) → Linear(128, 2)
 ```
 
-trained under either CrossEntropy or Focal Loss, with the choice made by the Optuna study rather
-than fixed in advance.
+**Focal Loss** was implemented from scratch (`(1 − p_t)^γ` down-weighting of easy examples) rather
+than imported, and offered to the search alongside class-weighted CrossEntropy.
 
-Class, entity-relationship, and use-case diagrams are in [`docs/diagrams/`](docs/diagrams/)
-(editable `.drawio` sources included).
+Reusable components are extracted to [`src/`](src/) — [`losses.py`](src/losses.py),
+[`models.py`](src/models.py).
+
+**Architectures tried and rejected:** transformer-over-tabular-features, MLP+BatchNorm,
+MLP+L2+early-stopping, deeper heads. None beat the simple searched MLP — with ~924 training
+examples there was nothing for the extra capacity to learn. Every failed experiment pointed at
+dataset size, not architecture.
+
+→ [`docs/03_modeling.md`](docs/03_modeling.md) · [`docs/04_evaluation.md`](docs/04_evaluation.md)
+
+---
 
 ## Repository Structure
 
 ```
 PrideShield/
 ├── notebooks/
-│   ├── 01_data_collection/     # multi-platform scraping
-│   ├── 02_preprocessing/       # OCR, dedup, normalization, annotation merge
-│   ├── 03_modeling/            # text baseline, CLIP+MLP models
-│   └── utils/                  # shared data-wrangling helpers
-├── docs/diagrams/              # DFD, class, ER, use-case (+ .drawio sources)
-├── requirements.txt
+│   ├── 01_data_collection/     # 5 notebooks — scraping across 4 platforms
+│   ├── 02_preprocessing/       # 7 notebooks — dedup, OCR, correction, merge
+│   ├── 03_modeling/            # 5 notebooks — baseline, CLIP+MLP, encoder comparison
+│   └── utils/
+├── src/                        # extracted components (FocalLoss, MultimodalMLP)
+├── docs/                       # per-stage technical write-ups + diagrams + figures
+├── requirements.txt            # pinned
 ├── CITATION.cff
-├── LICENSE                     # Apache-2.0
-└── NOTICE
+└── LICENSE                     # Apache-2.0
 ```
 
-## Pipeline
+## Documentation
 
-Notebooks are numbered in execution order within each stage.
-
-### `01_data_collection/` — free-tier and browser-driven scraping
-| Notebook | Purpose |
+| Document | Covers |
 |---|---|
-| `01_reddit_scraper_praw.ipynb` | Keyword-targeted collection from selected subreddits (PRAW free tier) |
-| `02_reddit_scraper_async_praw.ipynb` | Async (`asyncpraw`) variant for higher throughput |
-| `03_4chan_scraper.ipynb` | Thread/post/media collection via 4chan's public JSON API |
-| `04_selenium_image_scraper.ipynb` | Selenium browser automation for JS-rendered image search |
-| `05_google_images_scraper.ipynb` | Query-based supplementary image collection |
+| [`01_dataset.md`](docs/01_dataset.md) | Collection methods (incl. failures), dedup, splits, class balance |
+| [`02_preprocessing.md`](docs/02_preprocessing.md) | pHash dedup, OCR extraction, T5 + Levenshtein correction |
+| [`03_modeling.md`](docs/03_modeling.md) | Baseline, architecture, encoder comparison, Optuna, rejected variants |
+| [`04_evaluation.md`](docs/04_evaluation.md) | Results, how to read them, what was not measured |
+| [`05_future_work.md`](docs/05_future_work.md) | Current SOTA (VLMs, PEFT, benchmarks) and the rebuild plan |
 
-### `02_preprocessing/` — the quality-control layer
-| Notebook | Purpose |
-|---|---|
-| `01_ocr_text_extraction.ipynb` | EasyOCR text extraction from meme images |
-| `02_ocr_correction_t5.ipynb` | T5-based correction of garbled OCR output |
-| `03_image_deduplication.ipynb` | Perceptual-hash deduplication (`imagededup`) |
-| `04_reverse_image_search_validation.ipynb` | Reverse-image search for provenance checking |
-| `05_integrate_supplementary_images.ipynb` | Merge supplementary images into the corpus |
-| `06_merge_annotation_csvs.ipynb` | Reconcile the two annotators' independent label files |
-| `07_text_normalization_spellcheck.ipynb` | Levenshtein/spellchecker repair of OCR text |
-
-### `03_modeling/`
-| Notebook | Purpose |
-|---|---|
-| `01_bert_text_baseline.ipynb` | Text-only transformer baseline (FRENK-LGBT benchmark) |
-| `02_bert_finetuning_v1.ipynb` | Further fine-tuning experiments on the text model |
-| `03_clip_mlp_v1.ipynb` | First CLIP-embedding + MLP multimodal model |
-| `04_clip_mlp_optuna_final.ipynb` | **Final model** — Optuna search, Focal Loss, encoder comparison |
-| `05_multimodal_architecture_experiments.ipynb` | Alternative fusion architectures (incl. the abandoned tabular-transformer variant) |
+Design diagrams (data-flow, class, ER, use-case) with editable `.drawio` sources:
+[`docs/diagrams/`](docs/diagrams/).
 
 ## Getting Started
 
@@ -265,102 +182,58 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Notebooks were developed in Google Colab and contain Colab-specific paths (`/content/…`, Drive
-mounts); adjust for local execution. Scrapers require your own API credentials (Reddit app
-credentials for PRAW) — never commit them; `.gitignore` covers `praw.ini` and `.env`.
+Notebooks are read-only references — they use Colab paths (`/content/…`, Drive mounts) and the
+dataset is not distributed. `src/` is importable and runnable. Scrapers require your own Reddit API
+credentials; `.gitignore` covers `praw.ini` and `.env`.
 
-Notebook outputs are intentionally stripped (see below).
+## Dataset Availability
 
-## Dataset & Responsible Use
+**The dataset is not publicly available.** Release was not authorized by the supervising faculty at
+JUIT, and independently, publishing a corpus of scraped hate speech targeting a marginalized
+community would be the wrong thing to do — it would redistribute that material to anyone browsing
+the repo and conflict with the source platforms' terms of service. **Please do not request it.**
 
-**The dataset is not publicly available, and notebook outputs have been cleared.**
+Everything needed to rebuild an equivalent corpus is documented in
+[`docs/01_dataset.md`](docs/01_dataset.md) and [`docs/02_preprocessing.md`](docs/02_preprocessing.md).
 
-Two independent reasons:
+**If you build on this work:** treat the classifier as a triage aid, not an adjudicator. False
+positives on reclaimed in-group language are the dominant failure mode for this class of model, and
+silencing the community the system exists to protect is a worse error than missing a slur.
 
-1. **Release has not been approved.** The dataset was produced under academic supervision at JUIT
-   and the supervising faculty have not authorized public release. That decision is theirs, and it
-   stands regardless of anything else here.
-2. **It would be the wrong thing to publish anyway.** The corpus is scraped hate speech targeting a
-   marginalized community. Publishing it — or notebook outputs rendering it — would redistribute
-   that material to anyone browsing the repo, and would conflict with the source platforms' terms of
-   service.
+---
 
-The code is available; the harmful content is not. **Please do not request the dataset** — it is not
-mine to release.
+## Notes & Caveats
 
-Everything needed to rebuild an equivalent corpus is documented: the collection sources and methods
-in [`docs/01_dataset.md`](docs/01_dataset.md), and the cleaning pipeline in
-[`docs/02_preprocessing.md`](docs/02_preprocessing.md).
+<sub>
 
-**If you build on this work:** treat the classifier as a *triage aid*, not an adjudicator. False
-positives on reclaimed in-group language are a known and serious failure mode for this class of
-model, and the cost of silencing the community you intend to protect is not symmetric with the cost
-of missing a slur.
+**Metrics.** Accuracy should be read against the 80.9% majority-class floor, not zero. Reported
+precision/recall/F1 are positive-class (`average="binary"`), not macro — macro figures are lower.
+ROC-AUC 0.9030 is the most robust single number; AUPRC would have been more informative under
+imbalance and was not computed.
 
-## Limitations
+**Comparison validity.** The text baseline was trained on an external corpus (FRENK-LGBT), not on
+meme captions, so the ~7-point multimodal gain confounds modality with training data and is
+indicative rather than a controlled ablation. The test split is ~198 examples, so encoder gaps are
+point estimates without confidence intervals; single fixed split, no k-fold, no multi-seed runs.
 
-Stated plainly, because they bound what the results mean:
+**Dataset.** Inter-annotator disagreements were dropped rather than adjudicated (~21% of labeled
+items), removing the hardest examples and inflating all metrics relative to real-world difficulty.
+Class balance (80.9% positive) is inverted relative to real moderation traffic. English-only, narrow
+platform and time coverage. Both annotators were project members; no Cohen's κ was computed.
 
-- **Class balance is inverted relative to deployment.** The dataset is ~80.9% / 19.1%, whereas real
-  moderation traffic is overwhelmingly benign. A majority-class baseline scores ~80.9% here, so
-  headline accuracy overstates practical utility — minority-class precision/recall are the
-  informative metrics.
-- **Reported precision/recall/F1 are positive-class, not macro.** Macro-averaged figures are lower.
-- **The text baseline is not a clean ablation.** It was trained on an external public benchmark
-  (FRENK-LGBT), not on the meme corpus, so "multimodal beats text-only" is not a controlled
-  comparison on identical data.
-- **Small evaluation set.** ~1,320 labeled examples; differences between CLIP encoders are point
-  estimates without confidence intervals and may not be statistically separable.
-- **Annotator disagreements were dropped, not adjudicated**, removing the hardest cases and likely
-  inflating all reported metrics relative to real-world difficulty.
-- **Two annotators, both project members.** No external validation, and no inter-annotator
-  agreement statistic (e.g. Cohen's κ) was computed — it should have been.
-- **Single-run results.** No multi-seed variance reporting, no k-fold cross-validation.
-- **No fairness or adversarial-robustness evaluation** — a real gap for a moderation system.
-- **English-only**, scoped to a narrow slice of platforms and time.
+**Not evaluated.** Fairness/subgroup analysis, adversarial robustness, calibration, error analysis,
+and false-positive rate on reclaimed in-group language — the last being the most consequential gap
+for any deployed version. Ablations of the OCR-correction stack and the fusion strategy were also
+not run.
 
-## Future Scope
+**Reproducibility.** Results were not tracked in an experiment logger; metrics were recovered from
+the project report and notebook outputs. Deduplication parameters were not logged.
 
-This is 2024-era multimodal tooling. CLIP-embeddings-plus-a-head was reasonable then; it is no
-longer the obvious choice. If restarted today:
+</sub>
 
-**1. Benchmark against modern vision-language models first.**
-Instruction-tuned VLMs (LLaVA, Qwen-VL, InternVL, or a frontier multimodal API) can be evaluated
-zero-shot or few-shot with no training at all. That is the baseline any new work must beat — and it
-may beat the CLIP+MLP pipeline outright. A modern version should *start* there.
-
-**2. Replace concatenation with real fusion.**
-Cross-attention between modalities, or a VLM attending jointly over image and text natively, can
-model the image-text *interaction* that carries the hostility — the exact signal concatenation
-cannot represent.
-
-**3. Exploit VLM reasoning for explainability.**
-A VLM can be prompted to *explain why* a meme is hateful, producing a rationale a human moderator
-can audit — far more useful operationally than a scalar score.
-
-**4. Use VLMs to break the annotation bottleneck.**
-The binding constraint here was human labeling capacity. Modern VLMs can pre-label at scale with
-humans adjudicating only low-confidence cases — the same corpus effort could plausibly yield an
-order of magnitude more data.
-
-**5. Fix the evaluation methodology.**
-The most important upgrades aren't architectural: a like-for-like text-vs-multimodal ablation on
-identical data; k-fold CV with confidence intervals; macro-averaged metrics; multi-seed runs;
-adjudicated (not dropped) disagreements with a reported κ; and a test set reflecting realistic
-class balance.
-
-**6. Add fairness and robustness evaluation.**
-Measure false-positive rates on reclaimed in-group language, and test robustness to adversarial
-evasion (character substitution, text-in-image obfuscation, crops).
-
-**7. Track experiments properly.**
-W&B or MLflow with configuration-driven sweeps, so results are queryable rather than living in
-notebook cell outputs.
+---
 
 ## Citation
-
-If you use this work, please cite it (GitHub's *"Cite this repository"* button reads
-[`CITATION.cff`](CITATION.cff)):
 
 ```bibtex
 @software{singh_prideshield_2025,
@@ -381,10 +254,7 @@ Technology under Prof. Dr. Vivek Kumar Sehgal and Dr. Kushal Kanwar; **Arpan Cha
 
 ## License
 
-Licensed under the **Apache License 2.0** — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
-You may use, modify, and distribute this work, including commercially, provided you retain
-attribution and the license notice.
+**Apache License 2.0** — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). Use, modify and distribute
+freely, including commercially, provided attribution and the license notice are retained.
 
----
-
-**Contact:** Ankush Singh — ankush.singh1802@gmail.com
+**Contact:** ankush.singh1802@gmail.com

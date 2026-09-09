@@ -1,190 +1,156 @@
-# 04 — Modeling
+# 03 — Modeling
 
-*Retrospective documentation. Covers the text baseline, the multimodal architecture, the encoder
-comparison, and the variants that were tried and abandoned.*
+Text baseline, multimodal architecture, encoder comparison, and the variants that were rejected.
 
 ---
 
 ## Design constraint: frozen encoders
 
-Free-tier Colab could not fine-tune a 307M-parameter vision transformer. The architecture was
-therefore fixed early:
+Free-tier Colab could not fine-tune a 307M-parameter vision transformer, fixing the architecture
+early:
 
 > **Frozen CLIP encoders as feature extractors + a small trainable MLP head.**
 
-This was a compute decision before it was a modeling decision. It has real consequences — the
-encoders never adapt to meme-specific visual style or the peculiarities of OCR text — but it also
-brought genuine advantages worth acknowledging: embeddings are computed **once** and cached, after
-which every experiment trains in seconds on CPU. That is what made a 30-trial hyperparameter search
-and a three-encoder comparison affordable at all. Under the constraints, it was the right call.
+A compute decision before a modeling one — but it had a real upside. Embeddings are computed **once**
+and cached, after which every experiment trains in seconds on CPU. That is what made a 30-trial
+hyperparameter search across three encoders affordable at all.
 
 ## Text-only baseline
 
-**Purpose:** establish what text alone achieves, so the multimodal model has something to beat.
+**Purpose:** establish what text alone achieves, so the multimodal model has a meaningful target.
 
 | Property | Value |
 |---|---|
-| Model | DistilBERT / BERT-family (`AutoModelForSequenceClassification`, `num_labels=2`) |
-| Attention dropout | 0.2 |
-| Hidden dropout | 0.2 |
+| Model | DistilBERT / BERT-family (`AutoModelForSequenceClassification`, 2 labels) |
+| Dropout | attention 0.2, hidden 0.2 |
 | Training | HuggingFace `Trainer` |
-| Data | **FRENK hate-speech benchmark, LGBT subset** (public, English) |
-| Reported accuracy | **~86.87%** (project report) |
-
-⚠️ **Two caveats that matter:**
-
-1. **Model identity discrepancy.** The project report specifies `distilbert-base-uncased`. The
-   surviving notebook code instantiates `bert-base-uncased`, with DistilBERT present but commented
-   out. These were likely different runs at different times. The safe description is
-   "a DistilBERT/BERT-family baseline" — don't over-specify.
-2. **Metric discrepancy.** The report states ~86.87%; a surviving notebook output shows 77% on a
-   held-out split. Most likely an earlier run versus the final one. The report is the submitted,
-   defended artifact, so it takes precedence — but the discrepancy is real and is recorded here
-   rather than hidden.
-
-**The deeper problem:** this baseline was trained on FRENK, *not* on meme OCR captions. So the
-text-vs-multimodal comparison varies **both** modality and training corpus. It is not a controlled
-ablation, and the ~7-point multimodal gain is indicative rather than isolated. Training the baseline
-on the meme captions would have cost almost nothing and would have made the central claim clean.
-This is the project's most significant methodological miss.
+| Data | FRENK hate-speech benchmark, LGBT subset (public) |
+| **Accuracy** | **~86.87%** |
 
 ## Multimodal architecture
 
-For each meme:
-
 ```
-   image ──► CLIP vision encoder (frozen) ──► image embedding ──┐
-                                                                 ├─► L2-norm ─► concat ─► MLP ─► {hateful, not}
-   OCR text ► CLIP text encoder (frozen) ──► text embedding ────┘
+image ----> CLIP vision encoder (frozen) ----> L2-norm --+
+                                                          +--> concat --> MLP --> {hateful, not}
+OCR text --> CLIP text encoder   (frozen) ----> L2-norm --+
 ```
-
-**Steps:**
 
 1. **Image embedding** — frozen CLIP vision encoder.
 2. **Text embedding** — frozen CLIP text encoder over the corrected OCR caption.
-3. **77-token workaround.** CLIP's text encoder has a hard 77-token context limit; longer captions
-   are chunked, each chunk embedded, and the chunk embeddings **averaged**. This is informal and
-   lossy — averaging discards word order and dilutes salient content in long captions.
-4. **L2 normalization** of both vectors, then **concatenation**.
-5. **MLP classification head** on the fused vector.
+3. **77-token workaround** — CLIP's text encoder has a hard 77-token limit; longer captions are
+   chunked and the chunk embeddings averaged.
+4. **L2 normalisation** of both vectors, then **concatenation** — normalising first prevents the
+   larger-magnitude modality from dominating.
+5. **MLP head** on the fused vector.
 
-### Classifier head
+### Classification head
 
 ```
-Linear(embed_dim, 256) → ReLU → Dropout(0.4)
-    → Linear(256, 128) → ReLU → Dropout(0.4)
-        → Linear(128, 2)
+Linear(embed_dim, 256) -> ReLU -> Dropout(0.4)
+    -> Linear(256, 128) -> ReLU -> Dropout(0.4)
+        -> Linear(128, 2)
 ```
 
-Deliberately small — with ~924 training examples, a larger head overfits immediately.
+Deliberately small — with ~924 training examples a larger head overfits immediately. Extracted to
+[`../src/models.py`](../src/models.py).
 
 ## Encoder comparison
 
-All three CLIP encoders were run through **identical** downstream conditions (same head, same
-search procedure, same splits), which is what makes the comparison meaningful.
+All three run through **identical** downstream conditions — same head, same search, same splits.
 
-| Encoder | Type | Embed dim | Params | Peak accuracy |
+| Encoder | Type | Embed dim | Params | Accuracy |
 |---|---|---|---|---|
-| `ViT-B/32` | Vision Transformer, 32px patches | 512 | ~88M | 89.73% |
-| **`ViT-L/14@336px`** | Vision Transformer, 14px patches, 336px input | 768 | ~307M | **93.94%** |
+| `ViT-B/32` | ViT, 32px patches | 512 | ~88M | 89.73% |
+| **`ViT-L/14@336px`** | ViT, 14px patches, 336px input | 768 | ~307M | **93.94%** |
 | `RN50x64` | Scaled ResNet (CNN) | 1024 | ~336M | 84.85% |
 
-### The interesting result: the CNN lost despite being the largest
+### Finding: the CNN lost despite being the largest
 
-`RN50x64` has the **most parameters (~336M)** and the **widest embedding (1024-d)**, and finished
-**last** — nearly 5 points below `ViT-B/32`, which has roughly a quarter of the parameters and half
-the embedding width.
+`RN50x64` has the **most parameters** and the **widest embedding**, and finished **last** — ~5 points
+below `ViT-B/32`, which has roughly a quarter of its parameters.
 
-Capacity was not the binding factor; **representation quality** was. A plausible reading: this task
+Capacity was not the binding factor; **representation quality** was. A plausible reading: the task
 requires relating overlaid text semantics to image semantics, and ViT's global self-attention
 captures that relational structure in a way convolutional inductive bias does not. CLIP's ViT and
-ResNet variants also differ in training dynamics beyond architecture, so this is a reasonable
-interpretation rather than a proven mechanism.
+ResNet variants also differ in training dynamics beyond architecture, so this is an interpretation
+rather than a proven mechanism.
 
-**Caveat:** on a 198-example test set these gaps are point estimates without confidence intervals.
-The ViT-L vs ViT-B gap (~4 points) is probably real; smaller gaps may not be separable.
+## Class imbalance
 
-### Patch size and resolution
+At 80.9%/19.1%, an untreated model reaches ~80.9% by always predicting the majority class. Two
+strategies, both in [`../src/losses.py`](../src/losses.py):
 
-`ViT-L/14@336px` wins on three axes simultaneously — finer patches (14 vs 32), higher input
-resolution (336 vs 224), more parameters. The design does not isolate which contributes most. Finer
-patches at higher resolution should help with small overlaid text, which is a sensible hypothesis
-for *why* it won, but the experiment doesn't demonstrate it.
-
-## Class imbalance handling
-
-With 80.9% / 19.1% balance, an untreated model can score ~80.9% by always predicting the majority
-class. Two strategies were implemented:
-
-**1. Focal Loss** — written from scratch:
+**Focal Loss**, implemented from scratch:
 
 ```
-FL(p_t) = -α (1 - p_t)^γ log(p_t)
+FL(p_t) = -alpha * (1 - p_t)^gamma * log(p_t)
 ```
 
-The `(1 - p_t)^γ` term down-weights already-easy examples, concentrating gradient on hard ones.
+The `(1 - p_t)^gamma` term down-weights easy examples, concentrating gradient on hard ones.
 
-**2. Class-weighted CrossEntropy** — inverse-frequency weighting.
+**Class-weighted CrossEntropy** — inverse-frequency weighting.
 
-**Neither was assumed correct.** The loss function was a *search parameter*, and Optuna chose:
+**Neither was assumed correct.** The loss function was made a *search parameter*:
 
-| Encoder | Loss selected |
+| Encoder | Loss selected by Optuna |
 |---|---|
-| ViT-L/14@336px | **Focal Loss** |
-| ViT-B/32 | **Class-weighted CrossEntropy** |
+| `ViT-L/14@336px` | **Focal Loss** |
+| `ViT-B/32` | **Class-weighted CrossEntropy** |
 
-That split is a genuine finding: the optimal imbalance strategy depended on the encoder, which is
-not something we would have discovered by fixing the loss in advance.
+That split is a genuine finding — the right imbalance strategy depended on the encoder, which fixing
+the loss in advance would have concealed.
 
 ## Hyperparameter search
 
-**Optuna, 30 trials**, jointly tuning:
+**Optuna, 30 trials**, jointly tuning optimizer (Adam/AdamW/SGD), learning rate, weight decay,
+dropout, activation (ReLU/LeakyReLU/GELU), **loss function**, and layer configuration.
 
-| Parameter | Search space |
-|---|---|
-| Optimizer | Adam / AdamW / SGD |
-| Learning rate | continuous |
-| Weight decay | continuous |
-| Dropout | continuous |
-| Activation | ReLU / LeakyReLU / GELU |
-| **Loss function** | Focal Loss / CrossEntropy |
-| Layer configuration | width and depth |
+**Winning configuration:** AdamW, lr 0.01, weight decay 0, dropout 0.4, LeakyReLU, Focal Loss,
+layers `[512, 256, 128]`.
 
-**Winning configuration (ViT-L/14@336px):** AdamW, lr 0.01, weight decay 0, dropout 0.4,
-LeakyReLU, Focal Loss, layers `[512, 256, 128]`.
+## Rejected variants
 
-**In hindsight:** 30 trials is thin for a 7-dimensional space, and the search optimized a single
-validation split — with 198 validation examples, some of the "best" configuration is fitted to
-validation noise. Nested cross-validation would have been the correct protocol and was affordable
-on cached embeddings.
-
-## What didn't work
-
-| Attempt | Outcome | Why (in hindsight) |
+| Attempt | Outcome | Why |
 |---|---|---|
-| **Transformer over tabular features** — a transformer encoder over the concatenated embedding vector | Abandoned; no gain over plain MLP | ~924 training examples cannot support the extra capacity; there is no sequential structure in a concatenated embedding for attention to exploit |
+| **Transformer over tabular features** | No gain over plain MLP | ~924 examples cannot support the capacity; a concatenated embedding has no sequential structure for attention to exploit |
 | **MLP + BatchNorm** | No consistent improvement | Small batches on a small dataset make BatchNorm statistics noisy |
-| **MLP + L2 + early stopping** | No improvement over Optuna-selected dropout | Dropout at 0.4 was already doing the regularization work |
-| **Deeper MLP heads** | Overfit | Dataset size, again |
-| **RN50x64 encoder** | Worst performer despite largest size | See above — representation quality over capacity |
+| **MLP + L2 + early stopping** | No improvement | Dropout at 0.4 was already doing the regularization work |
+| **Deeper MLP heads** | Overfit | Dataset size |
 
-**The consistent theme:** every attempt to add capacity failed, and the binding constraint was
-always dataset size. That is the correct diagnosis, and it points at data — not architecture — as
-where effort should have gone.
+**The consistent theme:** every attempt to add capacity failed, and the binding constraint was always
+dataset size — which locates the problem in the data, not the architecture.
 
-## The fusion limitation
+---
 
-Concatenating two frozen embeddings is **early fusion in its crudest form**. The MLP sees two
-independent vectors glued together and must infer their relationship from scratch, with no mechanism
-for the modalities to attend to each other.
+## Notes & Caveats
 
-For memes this is a real handicap: hostility lives in the *interaction* between image and caption —
-a benign image paired with a benign phrase producing a hateful whole. Concatenation cannot
-represent "this text, about this image."
+<sub>
 
-We knew this at the time. Cross-attention fusion was out of reach on free-tier compute, and this is
-the single clearest architectural upgrade for any continuation (see
-[`05_future_work.md`](05_future_work.md)).
+**The baseline is not a clean ablation.** It was trained on FRENK, not on meme OCR captions, so the
+text-vs-multimodal comparison varies both modality and training corpus. The ~7-point gain is
+indicative, not isolated. This is the project's most significant methodological miss and the fix was
+cheap.
+
+**Model identity discrepancy.** The project report specifies `distilbert-base-uncased`; surviving
+notebook code instantiates `bert-base-uncased` with DistilBERT commented out — likely different runs.
+"DistilBERT/BERT-family" is the safe description. Similarly, the report gives the baseline at
+~86.87% while a notebook output shows 77%; the report is the submitted artifact and takes precedence.
+
+**Search protocol.** 30 trials is thin for a 7-dimensional space, and the search optimized a single
+198-example validation split — so some of the "best" configuration is fitted to validation noise.
+Nested cross-validation was the correct protocol and was affordable on cached embeddings.
+
+**Encoder comparison confounds three variables.** `ViT-L/14@336px` wins on patch size, input
+resolution *and* parameter count simultaneously; the design does not isolate which contributes.
+
+**Fusion.** Concatenating frozen embeddings is early fusion in its crudest form and cannot model
+interaction between modalities — precisely where meme hostility lives. Cross-attention was out of
+reach on free-tier compute; see [`05_future_work.md`](05_future_work.md).
+
+**77-token workaround.** Chunking and averaging discards word order and dilutes salient content in
+long captions.
+
+</sub>
 
 ---
 
