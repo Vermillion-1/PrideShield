@@ -1,0 +1,85 @@
+<mxfile host="Electron" modified="2024-09-27T21:03:45.870Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.1.0 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="w9UicGM-zWwctunOffBM" version="24.1.0" type="device">
+  <diagram name="Page-1" id="5KKKLT3-O1Zm_KYJRF9G">
+    <mxGraphModel dx="909" dy="551" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-1" target="sSDiPVBnuanIYcAkzZDE-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-1" value="Social Media Platforms(Reddit, Instagram, Twitter)" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="10" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-4" target="sSDiPVBnuanIYcAkzZDE-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-4" value="Web Scrapping" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="180" y="10" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-8" target="sSDiPVBnuanIYcAkzZDE-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-8" value="Posts" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="10" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-12" target="sSDiPVBnuanIYcAkzZDE-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-12" value="Data Preprocessing" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="10" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-15" target="sSDiPVBnuanIYcAkzZDE-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-15" value="Cleaned Data" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="10" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-17" target="sSDiPVBnuanIYcAkzZDE-19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-17" value="Hate Speech Detection&amp;nbsp;&lt;div&gt;(NLP Model)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="645" y="125" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-19" target="sSDiPVBnuanIYcAkzZDE-21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-19" value="Flagged Posts" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="125" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-24" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-21" target="sSDiPVBnuanIYcAkzZDE-23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-28" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-21" target="sSDiPVBnuanIYcAkzZDE-27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-21" value="If Automated" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="345" y="110" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-23" value="Deleted Posts" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="175" y="125" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-25" value="Yes" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="300" y="125" width="40" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-31" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-27" target="sSDiPVBnuanIYcAkzZDE-30">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-27" value="Admin/Moderator" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="230" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-29" value="No" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="385" y="190" width="40" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-33" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sSDiPVBnuanIYcAkzZDE-30" target="sSDiPVBnuanIYcAkzZDE-32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-30" value="Post Review" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="335" y="320" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sSDiPVBnuanIYcAkzZDE-32" value="Deleted Posts" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="410" width="110" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

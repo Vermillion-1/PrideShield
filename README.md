@@ -46,9 +46,10 @@ detection over a strong text-only baseline on this class of content?**
 
 ## Approach
 
-**Text-only baseline.** A BERT-family transformer (`bert-base-uncased`) fine-tuned for binary
-sequence classification, trained and evaluated on a *public* English hate-speech benchmark
-(FRENK, LGBT subset). This establishes what text alone achieves.
+**Text-only baseline.** A DistilBERT/BERT-family transformer fine-tuned for binary sequence
+classification (attention dropout 0.2, hidden dropout 0.2, HuggingFace `Trainer`), trained and
+evaluated on a *public* English hate-speech benchmark (FRENK, LGBT subset). This establishes what
+text alone achieves.
 
 **Multimodal model.** For each meme:
 1. The image is embedded with a **CLIP** vision encoder.
@@ -69,16 +70,56 @@ width/depth — rather than hand-tuned.
 
 ## Results
 
-The best multimodal configuration reached **93.94% accuracy** on the held-out meme test split,
-using CLIP `ViT-L/14@336px` embeddings with an Optuna-selected Focal Loss MLP
-(`[512, 256, 128]`, LeakyReLU, dropout 0.4, AdamW).
+**Best configuration — CLIP `ViT-L/14@336px` embeddings → MLP head**, selected by Optuna
+(AdamW, lr 0.01, weight decay 0, dropout 0.4, LeakyReLU, Focal Loss):
+
+| Metric | Score |
+|---|---|
+| Accuracy | **93.94%** |
+| Precision | 96.91% |
+| Recall | 94.58% |
+| F1 | 95.73% |
+| ROC-AUC | 0.9030 |
+
+**Vision encoder comparison.** All three CLIP encoders were run through the same downstream MLP
+and search procedure:
+
+| Encoder | Embedding dim | Params | Peak accuracy | Relative compute |
+|---|---|---|---|---|
+| `ViT-B/32` | 512 | ~88M | 89.73% | Low |
+| **`ViT-L/14@336px`** | 768 | ~307M | **93.94%** | High |
+| `RN50x64` | 1024 | ~336M | 84.85% | Very high |
+
+The larger ViT wins, and — notably — the CNN encoder (`RN50x64`) loses despite having the most
+parameters and the widest embedding, suggesting the gain comes from representation quality rather
+than capacity. The text-only transformer baseline reached ~86.87%, so the multimodal pipeline
+adds roughly 7 points over text alone.
 
 **Read these numbers with the caveats in [Limitations](#limitations).** In particular: the dataset's
-class balance is inverted relative to real-world moderation traffic, precision/recall/F1 as reported
-are positive-class (not macro) figures, and the text baseline was trained on a *different, external*
-corpus — so it is not a like-for-like ablation of the visual modality. The honest summary is that
-the multimodal pipeline works well *on this dataset*, not that a specific lift over text-only has
-been cleanly isolated.
+class balance is inverted relative to real-world moderation traffic (a majority-class baseline
+already scores ~80.9%), precision/recall/F1 are positive-class rather than macro figures, and the
+text baseline was trained on a *different, external* corpus — so the ~7-point gap is indicative,
+not a controlled ablation of the visual modality.
+
+## Architecture
+
+<p align="center">
+  <img src="docs/diagrams/data_flow_diagram.jpg" alt="Data flow diagram" width="720">
+</p>
+
+**Classifier head.** CLIP embeddings feed a compact MLP:
+
+```
+Linear(embed_dim, 256) → ReLU → Dropout(0.4)
+    → Linear(256, 128) → ReLU → Dropout(0.4)
+        → Linear(128, 2)
+```
+
+trained under either CrossEntropy or Focal Loss, with the choice made by the Optuna study rather
+than fixed in advance.
+
+Additional design documentation — class diagram, entity-relationship diagram, and use-case
+diagram — is in [`docs/diagrams/`](docs/diagrams/) (editable `.drawio` sources included).
 
 ## Repository Structure
 
@@ -89,7 +130,9 @@ PrideShield/
 │   ├── 02_preprocessing/       # OCR, dedup, normalization, annotation merge
 │   ├── 03_modeling/            # BERT baseline, CLIP+MLP models
 │   └── utils/                  # shared data-wrangling helpers
-├── docs/assets/                # project introduction video
+├── docs/
+│   ├── diagrams/               # DFD, class, ER, use-case (+ .drawio sources)
+│   └── assets/                 # project introduction video
 ├── requirements.txt
 ├── CITATION.cff
 ├── LICENSE                     # Apache-2.0
@@ -182,7 +225,11 @@ Stated plainly, because they bound what the results mean:
   statistically separable.
 - **Annotator disagreements were dropped, not adjudicated**, removing the hardest cases and
   likely inflating all reported metrics relative to real-world difficulty.
-- **Single-run results.** No multi-seed variance reporting; no k-fold cross-validation.
+- **Single-run results.** No multi-seed variance reporting; no k-fold cross-validation, so the
+  encoder-comparison gaps are point estimates.
+- **Scope narrowed during the project.** The original objective targeted a text corpus of >100k
+  observations and a real-time moderation API; the delivered system is an offline research pipeline
+  trained on a substantially smaller corpus. The API/intervention layer was specified but not built.
 - **No fairness or adversarial-robustness evaluation** was performed — a real gap for a content
   moderation system.
 - **English-only**, and scoped to a narrow slice of platforms and time.

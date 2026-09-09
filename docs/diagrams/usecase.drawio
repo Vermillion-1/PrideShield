@@ -1,0 +1,60 @@
+<mxfile host="Electron" modified="2024-09-28T07:15:34.415Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.1.0 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="-Lrt0oxbuoTIgrPM69Sk" version="24.1.0" type="device">
+  <diagram name="Page-1" id="Q3ac7LMhcvoTLP4OTWpQ">
+    <mxGraphModel dx="1193" dy="724" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="hzmWCTla-pmz6daPss4O-3" value="Scrape Posts" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="30" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-4" value="Preprocess Posts" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="120" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-5" value="Detect Hate Speech" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="210" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-6" value="Flag post" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="300" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-7" value="Review Flagged Posts" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="390" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-8" value="Delete Post" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="480" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-9" value="Update NLP Model" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="570" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="hzmWCTla-pmz6daPss4O-10" target="hzmWCTla-pmz6daPss4O-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-10" value="Social Media Platforms" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="120" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="hzmWCTla-pmz6daPss4O-13" target="hzmWCTla-pmz6daPss4O-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-13" value="NLP Model" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" vertex="1" parent="1">
+          <mxGeometry x="540" y="320" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" target="hzmWCTla-pmz6daPss4O-7">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="400" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="hzmWCTla-pmz6daPss4O-15" target="hzmWCTla-pmz6daPss4O-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="hzmWCTla-pmz6daPss4O-15" target="hzmWCTla-pmz6daPss4O-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-15" value="Admin/Moderator" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" vertex="1" parent="1">
+          <mxGeometry x="101" y="370" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="hzmWCTla-pmz6daPss4O-21" value="" style="rounded=0;whiteSpace=wrap;html=1;gradientColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="220" y="10" width="370" height="650" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
