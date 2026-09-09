@@ -1,0 +1,39 @@
+# Data — never commit the corpus (content-sensitive; see README)
+data/
+*.csv
+*.tsv
+*.jsonl
+*.npy
+*.parquet
+images/
+memes/
+
+# Models / checkpoints
+*.pt
+*.pth
+*.pkl
+*.h5
+*.ckpt
+*.safetensors
+
+# Credentials
+.env
+*.key
+praw.ini
+credentials.json
+
+# Notebook cruft
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: "PrideShield: Multimodal Detection of Anti-LGBTQ+ Hate Speech in Memes"
+message: "If you use this software or reference this work, please cite it as below."
+type: software
+authors:
+  - given-names: Ankush
+    family-names: Singh
+    email: ankush.singh1802@gmail.com
+    orcid: ""
+repository-code: "https://github.com/Vermillion-1/PrideShield"
+abstract: >-
+  A multimodal classification pipeline for detecting anti-LGBTQ+ hate speech in
+  internet memes, combining OpenAI CLIP visual/text embeddings with an MLP
+  classification head, benchmarked against a BERT text-only baseline. Includes
+  the full data pipeline: multi-platform collection, OCR extraction and
+  correction, perceptual deduplication, and dual-annotator label reconciliation.
+keywords:
+  - multimodal-learning
+  - hate-speech-detection
+  - CLIP
+  - content-moderation
+  - computer-vision
+  - natural-language-processing
+license: Apache-2.0
+date-released: 2025-05-17
