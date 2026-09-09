@@ -11,14 +11,14 @@ didn't work.
 
 > **Status: archived research code (July 2024 – May 2025).** Built as an undergraduate major project
 > at JUIT. Preserved as-is for reproducibility and reference.
-> See **[Future Scope](#future-scope)** for how this would be built differently today.
+> See **[`docs/05_future_work.md`](docs/05_future_work.md)** for how this would be built today.
 
 ---
 
 ## Documentation
 
-Detailed write-ups of each pipeline stage, written retrospectively — including what didn't work and
-what we'd do differently:
+Detailed write-ups of each pipeline stage, written after the fact — including the approaches that
+failed and why:
 
 | Document | Covers |
 |---|---|
@@ -26,7 +26,7 @@ what we'd do differently:
 | [`docs/02_preprocessing.md`](docs/02_preprocessing.md) | Perceptual-hash dedup, EasyOCR extraction and its failure modes, the T5 + Levenshtein correction stack |
 | [`docs/03_modeling.md`](docs/03_modeling.md) | Text baseline, frozen-CLIP + MLP architecture, three-encoder comparison, imbalance handling, Optuna search, abandoned variants |
 | [`docs/04_evaluation.md`](docs/04_evaluation.md) | Results, how to read them against the 80.9% floor, and everything that was never measured |
-| [`docs/05_retrospective.md`](docs/05_retrospective.md) | What was right for 2024, what was wrong at the time, and how VLMs change the design today |
+| [`docs/05_future_work.md`](docs/05_future_work.md) | Current SOTA (VLMs, PEFT, modern benchmarks) and how this would be rebuilt today |
 
 ## Table of Contents
 

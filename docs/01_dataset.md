@@ -40,21 +40,84 @@ Concretely this ruled out:
 plus a small head produced a pipeline that trains in seconds and is trivially reproducible. The
 harm was to *dataset scale*, and scale is what most bounds the results.
 
-## Sources
+## Scraping: every method tried
 
-| Source | Access method | Notebook | Notes |
-|---|---|---|---|
-| Reddit | PRAW (free tier), keyword + subreddit targeting | `01_reddit_scraper_praw.ipynb` | Rate-limited; ran across multiple sessions |
-| Reddit (async) | `asyncpraw` | `02_reddit_scraper_async_praw.ipynb` | Higher throughput variant of the above |
-| 4chan | Public JSON API (`/lgbt/` board) | `03_4chan_scraper.ipynb` | No auth required; high hostile-content density |
-| DuckDuckGo / Bing Images | Selenium browser automation | `04_selenium_image_scraper.ipynb` | Required because results are JS-rendered |
-| Google Images | `google_images_download` + Selenium | `05_google_images_scraper.ipynb` | Supplementary top-up collection |
+Collection went through roughly six approaches before settling. Recording the failures because they
+explain the final architecture better than the successes do.
 
-**Why Selenium rather than HTTP scraping:** image search results are rendered client-side. A plain
-`requests` + BeautifulSoup approach returns an empty shell. Selenium drives a real browser, waits
-for render, then scrapes the DOM. This worked but was **slow and fragile** — each source needed its
-own CSS selector strategy, and those selectors broke as the sites changed. A meaningful share of
-project time went to repairing scrapers rather than writing new code.
+### ❌ Attempt 1 — Twitter/X via `twint`
+
+`twint` was the standard free Twitter scraper before the 2023 API changes. We cloned it and tried to
+use it. **It no longer worked** — Twitter's endpoint changes had broken it, and the project was
+effectively unmaintained. The official X API was paid-only at any useful volume.
+
+**Outcome: X dropped entirely as a source.** This is a real gap — X is arguably where the most
+meme-format hate speech circulates — and it was closed to us purely by cost.
+
+### ❌ Attempt 2 — Commercial scraping API (ScraperAPI)
+
+Prototyped a Reddit comment scraper against **ScraperAPI**, which handles proxy rotation and
+CAPTCHA solving. The surviving script still has `scraper_api_key = 'YOUR API KEY'` in it — **it was
+never funded**, so this path stopped at the prototype.
+
+This is the clearest artifact of the budget constraint: the code exists, and simply could not be
+run.
+
+### ❌ Attempt 3 — Plain `requests` + BeautifulSoup on image search
+
+The obvious cheap approach. **Returned nothing usable.** Image search results on Google, Bing and
+DuckDuckGo are rendered client-side by JavaScript, so an HTTP fetch returns a shell page with no
+image URLs in the markup.
+
+This failure is what forced browser automation.
+
+### ✅ Attempt 4 — Reddit via PRAW (free tier)
+
+`01_reddit_scraper_praw.ipynb` — the official Python Reddit API Wrapper, keyword-targeted across
+selected subreddits. Free tier, so **rate-limited**; collection ran across multiple sessions rather
+than in one pass.
+
+`02_reddit_scraper_async_praw.ipynb` — an `asyncpraw` rewrite to raise throughput within the same
+rate limits by overlapping requests instead of blocking on each one.
+
+**Worked well.** Reddit was the most reliable structured source.
+
+### ✅ Attempt 5 — 4chan via public JSON API
+
+`03_4chan_scraper.ipynb` — 4chan exposes threads, posts and attached media as **public JSON with no
+authentication**. Straightforward `requests` + parse; no browser automation needed.
+
+Highest hostile-content density of any source, and the easiest to collect from — the two facts are
+related, and worth being uncomfortable about.
+
+### ✅ Attempt 6 — Browser automation for image search
+
+`04_selenium_image_scraper.ipynb` — **Selenium** driving a real Chrome instance: load the search
+page, wait for JS render, scroll to trigger lazy loading, then scrape image URLs from the live DOM.
+
+Run against **DuckDuckGo** and **Bing**, each needing its own CSS selector strategy. Also used
+`bing_image_downloader` as a simpler wrapper for bulk Bing pulls, and `google_images_download` plus
+Selenium for Google (`05_google_images_scraper.ipynb`).
+
+**This worked, but it was the most fragile part of the pipeline:**
+- Selectors broke whenever a provider changed its markup — repeatedly, over months.
+- Lazy loading meant scroll timing mattered; scroll too fast and you collect nothing.
+- Headless mode was detected and blocked by some providers, so runs needed a visible browser.
+- Slow: a real browser rendering real pages, versus milliseconds for an API call.
+- Required a matching `chromedriver` build, pinned per Chrome version.
+
+**A meaningful share of project time went to repairing scrapers rather than writing new code.**
+
+### Summary
+
+| Method | Status | Why |
+|---|---|---|
+| Twitter/X via `twint` | ❌ Abandoned | Broken by API changes; official API paid-only |
+| ScraperAPI (commercial) | ❌ Abandoned | No budget — never funded past prototype |
+| `requests` + BeautifulSoup on image search | ❌ Failed | Results are JS-rendered; returns empty shell |
+| Reddit PRAW / asyncpraw | ✅ Used | Free tier, rate-limited, reliable |
+| 4chan public JSON API | ✅ Used | No auth, simple, high hostile-content density |
+| Selenium + DDG/Bing/Google Images | ✅ Used | Only way to reach JS-rendered image results |
 
 ## Collection volumes
 

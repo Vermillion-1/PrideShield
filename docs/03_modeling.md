@@ -184,7 +184,7 @@ represent "this text, about this image."
 
 We knew this at the time. Cross-attention fusion was out of reach on free-tier compute, and this is
 the single clearest architectural upgrade for any continuation (see
-[`05_retrospective.md`](05_retrospective.md)).
+[`05_future_work.md`](05_future_work.md)).
 
 ---
 
