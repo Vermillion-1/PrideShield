@@ -202,32 +202,35 @@ silencing the community the system exists to protect is a worse error than missi
 
 ---
 
-## Notes & Caveats
+## Note
 
 <sub>
 
-**Metrics.** Accuracy should be read against the 80.9% majority-class floor, not zero. Reported
-precision/recall/F1 are positive-class (`average="binary"`), not macro — macro figures are lower.
-ROC-AUC 0.9030 is the most robust single number; AUPRC would have been more informative under
-imbalance and was not computed.
+**Scope.** An undergraduate project built on free-tier compute, using a self-collected and
+self-labeled corpus of ~1,320 examples. The results hold within that scope.
 
-**Comparison validity.** The text baseline was trained on an external corpus (FRENK-LGBT), not on
-meme captions, so the ~7-point multimodal gain confounds modality with training data and is
-indicative rather than a controlled ablation. The test split is ~198 examples, so encoder gaps are
-point estimates without confidence intervals; single fixed split, no k-fold, no multi-seed runs.
+**Reading the metrics.** Accuracy is best read against the 80.9% majority-class floor. Precision,
+recall and F1 are positive-class figures; macro averages are lower. ROC-AUC (0.9030) is the most
+robust single number here.
 
-**Dataset.** Inter-annotator disagreements were dropped rather than adjudicated (~21% of labeled
-items), removing the hardest examples and inflating all metrics relative to real-world difficulty.
-Class balance (80.9% positive) is inverted relative to real moderation traffic. English-only, narrow
-platform and time coverage. Both annotators were project members; no Cohen's κ was computed.
+**The multimodal comparison.** The text baseline was trained on a public corpus (FRENK-LGBT) rather
+than on meme captions, so the ~7-point gap reflects both the added modality and the different
+training data.
 
-**Not evaluated.** Fairness/subgroup analysis, adversarial robustness, calibration, error analysis,
-and false-positive rate on reclaimed in-group language — the last being the most consequential gap
-for any deployed version. Ablations of the OCR-correction stack and the fusion strategy were also
-not run.
+**Test set.** ~198 examples on a single fixed split. The encoder ranking is clear; the smaller gaps
+between them are not statistically established.
 
-**Reproducibility.** Results were not tracked in an experiment logger; metrics were recovered from
-the project report and notebook outputs. Deduplication parameters were not logged.
+**Dataset composition.** 80.9% positive, English-only, drawn from a narrow set of platforms and a
+short time window. Items where the two labelers disagreed were dropped, so the final set skews
+toward clearer-cut examples.
+
+**Out of scope.** Fairness and subgroup analysis, adversarial robustness, calibration, and
+false-positive rate on reclaimed in-group language were not evaluated — the last matters most for
+any deployed version. Ablations of the OCR-correction stack and the fusion strategy were also not
+run.
+
+**Provenance.** Metrics come from the submitted project report; experiments were not tracked in a
+logger at the time.
 
 </sub>
 
@@ -257,4 +260,4 @@ Technology under Prof. Dr. Vivek Kumar Sehgal and Dr. Kushal Kanwar; **Arpan Cha
 **Apache License 2.0** — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). Use, modify and distribute
 freely, including commercially, provided attribution and the license notice are retained.
 
-**Contact:** ankush.singh1802@gmail.com
+**Contact:** ankush0102.singh@gmail.com

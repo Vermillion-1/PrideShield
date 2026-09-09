@@ -5,7 +5,7 @@ type: software
 authors:
   - given-names: Ankush
     family-names: Singh
-    email: ankush.singh1802@gmail.com
+    email: ankush0102.singh@gmail.com
 repository-code: "https://github.com/Vermillion-1/PrideShield"
 abstract: >-
   A multimodal classification pipeline for detecting anti-LGBTQ+ hate speech in
