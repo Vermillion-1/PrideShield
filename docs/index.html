@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrideShield — Technical Documentation</title>
+<meta name="description" content="Multimodal detection of anti-LGBTQ+ hate speech in memes: CLIP embeddings and an MLP head, benchmarked across three vision encoders. Dataset construction, preprocessing, modeling and evaluation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff; --bg-alt:#f7f8fa; --bg-code:#f4f5f7;
+    --fg:#1a1d21; --fg-muted:#5b6570; --fg-faint:#8b949e;
+    --line:#e3e6ea; --accent:#2a6f97; --accent-soft:#e8f0f6;
+    --ok:#2f7d4f; --warn:#b8791f; --bad:#c0453b;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --maxw:880px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1216; --bg-alt:#161a20; --bg-code:#171b21;
+      --fg:#e6e9ee; --fg-muted:#9aa5b1; --fg-faint:#6b7681;
+      --line:#242a32; --accent:#6fb3d9; --accent-soft:#152530;
+      --ok:#5fbf85; --warn:#e0a94a; --bad:#e07a70;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1216; --bg-alt:#161a20; --bg-code:#171b21;
+    --fg:#e6e9ee; --fg-muted:#9aa5b1; --fg-faint:#6b7681;
+    --line:#242a32; --accent:#6fb3d9; --accent-soft:#152530;
+    --ok:#5fbf85; --warn:#e0a94a; --bad:#e07a70;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:70px}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:var(--sans); font-size:16px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---- nav ---- */
+  nav{
+    position:sticky; top:0; z-index:50; background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    max-width:var(--maxw); margin:0 auto; padding:.6rem 1.25rem;
+    display:flex; align-items:center; gap:1.1rem; overflow-x:auto; scrollbar-width:none;
+  }
+  .nav-inner::-webkit-scrollbar{display:none}
+  .nav-inner a{
+    color:var(--fg-muted); text-decoration:none; font-size:.83rem; font-weight:500;
+    white-space:nowrap; padding:.25rem 0; border-bottom:2px solid transparent;
+  }
+  .nav-inner a:hover{color:var(--accent); border-bottom-color:var(--accent)}
+  .nav-brand{font-weight:700; color:var(--fg)!important; margin-right:.3rem}
+  #themeBtn{
+    margin-left:auto; background:none; border:1px solid var(--line); color:var(--fg-muted);
+    border-radius:6px; padding:.25rem .5rem; cursor:pointer; font-size:.85rem; line-height:1;
+  }
+  #themeBtn:hover{color:var(--accent); border-color:var(--accent)}
+
+  /* ---- layout: sidebar + content ---- */
+  .shell{
+    display:grid; grid-template-columns:232px minmax(0,1fr);
+    gap:2.5rem; max-width:1200px; margin:0 auto; padding:0 1.5rem;
+  }
+  aside{
+    position:sticky; top:58px; align-self:start; max-height:calc(100vh - 74px);
+    overflow-y:auto; padding:2rem 0 3rem; scrollbar-width:thin;
+  }
+  aside .toc-title{
+    font-size:.7rem; text-transform:uppercase; letter-spacing:.11em;
+    color:var(--fg-faint); font-weight:600; margin:0 0 .8rem;
+  }
+  aside ol{list-style:none; padding:0; margin:0; counter-reset:toc}
+  aside li{margin:0}
+  aside a{
+    display:block; padding:.4rem .7rem .4rem .75rem; font-size:.855rem;
+    color:var(--fg-muted); text-decoration:none; border-left:2px solid var(--line);
+    line-height:1.35; transition:color .12s, border-color .12s;
+  }
+  aside a:hover{color:var(--accent); border-left-color:var(--accent)}
+  aside a.active{
+    color:var(--accent); font-weight:600; border-left-color:var(--accent);
+    background:var(--accent-soft);
+  }
+  aside .toc-foot{
+    margin-top:1.4rem; padding-top:1rem; border-top:1px solid var(--line);
+    font-size:.78rem; line-height:1.5;
+  }
+  aside .toc-foot a{border:none; padding:.15rem 0; font-size:.78rem}
+  aside .toc-foot a:hover{background:none}
+  main{max-width:var(--maxw); margin:0; padding:0 0 6rem; min-width:0}
+  @media(max-width:940px){
+    .shell{grid-template-columns:1fr; gap:0}
+    aside{display:none}
+  }
+  section{padding-top:3.2rem}
+  h1{font-size:2.35rem; line-height:1.18; letter-spacing:-.022em; margin:0 0 .5rem}
+  h2{
+    font-size:1.42rem; letter-spacing:-.014em; margin:0 0 1rem;
+    padding-bottom:.45rem; border-bottom:1px solid var(--line);
+  }
+  h3{font-size:1.05rem; margin:2rem 0 .6rem; letter-spacing:-.008em}
+  p{margin:0 0 1rem}
+  a{color:var(--accent)}
+  .lede{font-size:1.1rem; color:var(--fg-muted); margin-bottom:1.4rem}
+  .muted{color:var(--fg-muted)}
+  small{font-size:.85rem}
+
+  /* ---- hero ---- */
+  header.hero{padding:3.2rem 0 .5rem}
+  .eyebrow{
+    font-family:var(--mono); font-size:.75rem; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:.7rem;
+  }
+  .stats{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:.7rem; margin:1.8rem 0 .5rem;
+  }
+  .stat{background:var(--bg-alt); border:1px solid var(--line); border-radius:9px; padding:.85rem .95rem}
+  .stat b{display:block; font-size:1.5rem; font-weight:700; letter-spacing:-.02em; line-height:1.1}
+  .stat span{font-size:.76rem; color:var(--fg-muted); display:block; margin-top:.25rem}
+
+  /* ---- components ---- */
+  .callout{
+    border-left:3px solid var(--accent); background:var(--accent-soft);
+    padding:.85rem 1.1rem; border-radius:0 8px 8px 0; margin:1.3rem 0;
+  }
+  .callout.warn{border-left-color:var(--warn); background:color-mix(in srgb,var(--warn) 9%,transparent)}
+  .callout p:last-child{margin-bottom:0}
+  .callout strong{color:var(--fg)}
+
+  table{width:100%; border-collapse:collapse; margin:1.1rem 0; font-size:.9rem; display:block; overflow-x:auto}
+  th,td{text-align:left; padding:.55rem .7rem; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-weight:600; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; color:var(--fg-muted)}
+  tbody tr:hover{background:var(--bg-alt)}
+
+  code{font-family:var(--mono); font-size:.86em; background:var(--bg-code); padding:.12em .38em; border-radius:4px}
+  pre{background:var(--bg-code); border:1px solid var(--line); border-radius:9px; padding:1rem; overflow-x:auto; margin:1.1rem 0}
+  pre code{background:none; padding:0; font-size:.83rem; line-height:1.6}
+
+  .diagram{
+    background:var(--bg-alt); border:1px solid var(--line); border-radius:11px;
+    padding:1.4rem 1rem; margin:1.4rem 0; overflow-x:auto; text-align:center;
+  }
+  .diagram .mermaid{display:flex; justify-content:center; min-width:min-content}
+  .caption{font-size:.83rem; color:var(--fg-muted); margin-top:.7rem; text-align:center}
+  figure{margin:1.5rem 0; padding:0}
+  figure img{
+    width:100%; height:auto; display:block; border-radius:10px;
+    border:1px solid var(--line); background:#fff;
+  }
+  figure figcaption{
+    font-size:.83rem; color:var(--fg-muted); margin-top:.6rem; text-align:center;
+  }
+
+  .pill{
+    display:inline-block; font-family:var(--mono); font-size:.72rem; padding:.15rem .5rem;
+    border-radius:20px; border:1px solid var(--line); color:var(--fg-muted); margin:0 .25rem .35rem 0;
+  }
+  .pass{color:var(--ok); font-weight:600}
+  .fail{color:var(--bad); font-weight:600}
+
+  ul,ol{padding-left:1.3rem; margin:0 0 1rem}
+  li{margin-bottom:.4rem}
+
+  footer{
+    border-top:1px solid var(--line); margin-top:4rem; padding-top:1.6rem;
+    font-size:.86rem; color:var(--fg-muted);
+  }
+  @media(max-width:640px){
+    h1{font-size:1.8rem} body{font-size:15px} .stat b{font-size:1.25rem}
+  }
+</style>
+</head>
+
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#top" class="nav-brand">PrideShield</a>
+    <a href="#problem">Problem</a>
+    <a href="#results">Results</a>
+    <a href="#dataset">Dataset</a>
+    <a href="#preprocessing">Preprocessing</a>
+    <a href="#modeling">Modeling</a>
+    <a href="#findings">Findings</a>
+    <a href="#future">Future Work</a>
+    <a href="#notes">Notes</a>
+    <button id="themeBtn" title="Toggle theme">◐</button>
+  </div>
+</nav>
+
+<div class="shell">
+
+<aside>
+  <p class="toc-title">Contents</p>
+  <ol>
+    <li><a href="#problem">The Problem</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#dataset">Building the Dataset</a></li>
+    <li><a href="#preprocessing">Preprocessing</a></li>
+    <li><a href="#modeling">Modeling</a></li>
+    <li><a href="#findings">What Worked, What Didn't</a></li>
+    <li><a href="#future">Future Work</a></li>
+    <li><a href="#notes">Notes &amp; Caveats</a></li>
+  </ol>
+  <div class="toc-foot">
+    <a href="https://github.com/Vermillion-1/PrideShield">↗ Repository</a>
+    <a href="https://github.com/Vermillion-1/PrideShield/tree/main/docs">↗ Full docs</a>
+  </div>
+</aside>
+
+<main id="top">
+
+<header class="hero">
+  <div class="eyebrow">Multimodal ML · Content Moderation</div>
+  <h1>PrideShield</h1>
+  <p class="lede">
+    Memes defeat text-only moderation: the image is often benign, the caption is often benign, and
+    the hostility exists only in their combination. PrideShield fuses CLIP visual and text embeddings
+    into an MLP classifier, benchmarks three vision encoders under identical conditions, and
+    evaluates against a text-only transformer baseline — on a corpus built and labeled by hand,
+    with no budget.
+  </p>
+  <div>
+    <span class="pill">PyTorch</span><span class="pill">CLIP</span><span class="pill">ViT</span>
+    <span class="pill">Transformers</span><span class="pill">Optuna</span>
+    <span class="pill">EasyOCR</span><span class="pill">Focal Loss</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>93.94%</b><span>accuracy (best encoder)</span></div>
+    <div class="stat"><b>0.903</b><span>ROC-AUC</span></div>
+    <div class="stat"><b>3</b><span>encoders benchmarked</span></div>
+    <div class="stat"><b>1,320</b><span>hand-labeled memes</span></div>
+  </div>
+  <p class="muted" style="margin-top:1.2rem"><small>
+    Archived research code, developed July 2024 – May 2025 as an undergraduate major project at JUIT.
+  </small></p>
+</header>
+
+<section id="problem">
+  <h2>The Problem</h2>
+  <p>
+    Automated moderation is strong on text and weak on multimodal content. Anti-LGBTQ+ harassment in
+    meme form exploits exactly that gap: meaning is carried by the <em>interaction</em> between image
+    and caption, so unimodal classifiers systematically under-detect it.
+  </p>
+  <div class="callout">
+    <p><strong>The testable question.</strong> Does adding the visual modality measurably improve
+    detection over a strong text-only baseline on this class of content?</p>
+  </div>
+
+  <h3>The constraint that shaped everything</h3>
+  <p>
+    No funding for paid APIs, annotation services, or compute. That single constraint determined the
+    architecture more than any modeling decision.
+  </p>
+  <table>
+    <thead><tr><th>Wanted</th><th>Blocked by</th><th>Done instead</th></tr></thead>
+    <tbody>
+      <tr><td>Twitter/X collection</td><td>Paid-only after the 2023 API changes</td><td>X dropped as a source</td></tr>
+      <tr><td>Bulk image-search APIs</td><td>No free tier at useful volume</td><td>Selenium browser automation</td></tr>
+      <tr><td>Commercial annotation</td><td>Cost per label</td><td>Hand-labeled by two people</td></tr>
+      <tr><td>GPU compute</td><td>No grant</td><td>Colab free tier → frozen encoders, small head</td></tr>
+    </tbody>
+  </table>
+  <p class="muted"><small>
+    The constraint was not purely limiting: frozen embeddings made the pipeline fast and
+    reproducible. The real cost was to <em>dataset scale</em>, which bounds every result here.
+  </small></p>
+</section>
+
+<section id="results">
+  <h2>Results</h2>
+  <p>
+    Best configuration — CLIP <code>ViT-L/14@336px</code> → MLP head, selected by a 30-trial Optuna
+    study (AdamW, lr 0.01, weight decay 0, dropout 0.4, LeakyReLU, Focal Loss, layers
+    <code>[512, 256, 128]</code>):
+  </p>
+  <table>
+    <thead><tr><th>Metric</th><th>Score</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Accuracy</strong></td><td><strong>93.94%</strong></td></tr>
+      <tr><td>Precision</td><td>96.91%</td></tr>
+      <tr><td>Recall</td><td>94.58%</td></tr>
+      <tr><td>F1</td><td>95.73%</td></tr>
+      <tr><td>ROC-AUC</td><td>0.9030</td></tr>
+    </tbody>
+  </table>
+
+  <figure>
+    <img src="figures/results.png"
+         alt="Left: bar chart comparing majority baseline, RN50x64, text-only BERT, ViT-B/32 and ViT-L/14. Right: scatter of encoder parameters against accuracy.">
+    <figcaption>Model comparison against the 80.9% majority-class floor, and encoder parameters plotted against accuracy.</figcaption>
+  </figure>
+
+  <div class="callout warn">
+    <p><strong>Read accuracy against the floor, not zero.</strong> The dataset is 80.9% positive, so
+    a constant predictor scores 80.9%. The achievement is <strong>+13 points over trivial</strong> —
+    and by the same measure <code>RN50x64</code> at 84.85% is only ~4 points above a constant
+    predictor. ROC-AUC (0.903) is the most robust single number here.</p>
+  </div>
+</section>
+
+<section id="dataset">
+  <h2>Building the Dataset</h2>
+  <p>
+    No public corpus of anti-LGBTQ+ memes existed. The Hateful Memes Challenge is synthetically
+    constructed and covers hate broadly; text-only corpora cannot support a multimodal task. So the
+    corpus was built end to end.
+  </p>
+
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+    A["<b>~1,700</b><br>raw images<br><small>4 sources</small>"]
+    B["<b>~1,690</b><br>after pHash<br>deduplication"]
+    C["<b>1,667</b><br>dual-labeled<br><small>2 annotators</small>"]
+    D["<b>1,320</b><br>final dataset<br><small>80.9% / 19.1%</small>"]
+    A --> B --> C --> D
+    D --> E["924 train"]
+    D --> F["198 val"]
+    D --> G["198 test"]
+    style D fill:#2a6f97,color:#fff,stroke:#1d4f6b
+    style A fill:__NEUTRAL_FILL__,stroke:__NEUTRAL_STROKE__,color:__NEUTRAL_TEXT__
+    style B fill:__NEUTRAL_FILL__,stroke:__NEUTRAL_STROKE__,color:__NEUTRAL_TEXT__
+    style C fill:__NEUTRAL_FILL__,stroke:__NEUTRAL_STROKE__,color:__NEUTRAL_TEXT__
+    </pre>
+    <div class="caption">The 1,667 → 1,320 drop is label reconciliation: items where the two annotators disagreed were dropped rather than adjudicated (~21% of the corpus).</div>
+  </div>
+
+
+  <h3>Dataset statistics</h3>
+  <p>Measured from the final artifacts, not estimated.</p>
+
+  <table>
+    <thead><tr><th>Artifact</th><th>Rows</th><th>Columns</th><th>Size</th></tr></thead>
+    <tbody>
+      <tr><td>Raw image corpus (deduplicated)</td><td>1,696 images</td><td>—</td><td>476 MB</td></tr>
+      <tr><td>OCR extraction output</td><td><strong>19,938</strong> text regions</td><td>3</td><td>1.1 MB</td></tr>
+      <tr><td>Dual-annotated table</td><td>1,667</td><td>5</td><td>451 KB</td></tr>
+      <tr><td><strong>Final training dataset</strong></td><td><strong>1,320</strong></td><td><strong>11</strong></td><td>1.06 MB</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    OCR ran across <strong>1,405 distinct memes</strong> and produced <strong>19,938 text
+    regions</strong> — an average of <strong>14.2 detected regions per meme</strong>, which is a
+    concrete measure of how fragmented meme text is compared to ordinary document OCR. Mean
+    detection confidence was <strong>0.712</strong> (median 0.794), with a long tail down to zero:
+    the quantitative justification for the correction stack.
+  </p>
+
+  <table>
+    <thead><tr><th>Property</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Class balance</td><td>1,068 positive (<strong>80.9%</strong>) / 252 negative (19.1%)</td></tr>
+      <tr><td>Splits (70/15/15)</td><td>924 train · 198 validation · 198 test</td></tr>
+      <tr><td>Caption length</td><td>mean 39.8 words, median 25, max 1,622</td></tr>
+      <tr><td>OCR correction magnitude</td><td>mean Levenshtein distance <strong>8.5</strong>, median 6, max 229</td></tr>
+      <tr><td>OCR confidence</td><td>mean 0.712 · median 0.794</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Final dataset columns: <code>Index</code>, <code>Filename</code>, <code>Extracted Text</code>,
+    <code>Annotator_1</code>, <code>Annotator_2</code>, <code>label</code>,
+    <code>corrected_text</code>, <code>levenshtein_distance</code>,
+    <code>normalized_levenshtein</code>, <code>image_path</code>, <code>clean_text</code> — the raw
+    OCR, the corrected text, and the edit distance between them are all retained, so the correction
+    stage is auditable per row.
+  </p>
+
+  <div class="callout">
+    <p><strong>Two numbers worth pausing on.</strong> A median caption of 25 words sits comfortably
+    inside CLIP's 77-token limit, but the 1,622-word maximum is why chunking was needed at all — the
+    workaround exists for a small tail, not the typical case. And a mean edit distance of 8.5
+    characters between raw and corrected OCR quantifies how much repair the text actually needed.</p>
+  </div>
+
+  <h3>Cached embeddings</h3>
+  <p>Embeddings were computed once per encoder and cached, which is what made repeated experiments cheap:</p>
+  <table>
+    <thead><tr><th>Encoder</th><th>Embed dim</th><th>Train</th><th>Validation</th><th>Test</th></tr></thead>
+    <tbody>
+      <tr><td><code>ViT-B/32</code></td><td>512</td><td>11.9 MB</td><td>2.5 MB</td><td>2.6 MB</td></tr>
+      <tr><td><code>ViT-L/14@336px</code></td><td>768</td><td>17.4 MB</td><td>3.7 MB</td><td>3.7 MB</td></tr>
+      <tr><td><code>RN50x64</code></td><td>1024</td><td>0.9 MB</td><td>0.2 MB</td><td>0.2 MB</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Collection: six methods, three failed</h3>
+  <p>The failures explain the architecture better than the successes.</p>
+  <table>
+    <thead><tr><th>Method</th><th></th><th>Outcome</th></tr></thead>
+    <tbody>
+      <tr><td>Twitter/X via <code>twint</code></td><td class="fail">✕</td><td>Broken by the 2023 API changes; official API paid-only. X dropped entirely — a real gap, since X is arguably where the most meme-format hate circulates.</td></tr>
+      <tr><td>ScraperAPI (commercial)</td><td class="fail">✕</td><td>Never funded. The prototype still contains <code>scraper_api_key = 'YOUR API KEY'</code> — the clearest artifact of the budget constraint.</td></tr>
+      <tr><td><code>requests</code> + BeautifulSoup</td><td class="fail">✕</td><td>Image search results are JS-rendered; an HTTP fetch returns a shell page with no image URLs. <em>This failure is what forced browser automation.</em></td></tr>
+      <tr><td>Reddit — PRAW / asyncpraw</td><td class="pass">✓</td><td>Free tier, rate-limited. An async rewrite overlapped requests to raise throughput within the same quota.</td></tr>
+      <tr><td>4chan — public JSON API</td><td class="pass">✓</td><td>No authentication required. Highest hostile-content density of any source, and the easiest to collect from — the two facts are related.</td></tr>
+      <tr><td>Selenium → DDG / Bing / Google</td><td class="pass">✓</td><td>Drives a real browser, waits for render, scrolls to trigger lazy loading, scrapes the live DOM. The most maintenance-heavy component in the pipeline.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <p><strong>Why deduplication was a correctness requirement, not housekeeping.</strong> The same
+    viral memes appear on every platform, so multi-source collection returns heavy overlap.
+    Duplicates landing on both sides of a train/test split leak the test set — the model scores well
+    by memorizing, and reported accuracy becomes fiction. Perceptual hashing (<code>imagededup</code>)
+    catches re-encoded, cropped and watermarked variants that exact hashing misses.</p>
+  </div>
+</section>
+
+<section id="preprocessing">
+  <h2>Preprocessing</h2>
+  <p>Turning raw scraped images into a usable multimodal training table meant solving four problems.</p>
+
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart TD
+    R["Raw scraped images"]
+    R --> D["<b>Deduplication</b><br>perceptual hash (pHash)"]
+    D --> O["<b>OCR extraction</b><br>EasyOCR"]
+    O --> T["<b>T5 correction</b><br>structural repair"]
+    T --> L["<b>Levenshtein repair</b><br>token-level spellcheck"]
+    L --> M["<b>Label reconciliation</b><br>keep only agreeing items"]
+    M --> F["Training table<br><small>image + corrected caption + label</small>"]
+    style F fill:#2a6f97,color:#fff,stroke:#1d4f6b
+    style O fill:#b8791f,color:#fff,stroke:#8a5a17
+    style T fill:#b8791f,color:#fff,stroke:#8a5a17
+    style L fill:#b8791f,color:#fff,stroke:#8a5a17
+    </pre>
+    <div class="caption">The three amber stages are the OCR quality-control layer — the highest-leverage part of the pipeline.</div>
+  </div>
+
+  <h3>OCR was the largest quality bottleneck</h3>
+  <p>
+    Meme text is stylized, low-contrast, spread across panels with no reading order, and often
+    rendered <em>as part of</em> the image rather than overlaid. EasyOCR handled the common cases and
+    failed on the rest — dropped characters, merged words, spurious characters from background
+    texture, scrambled reading order.
+  </p>
+  <div class="callout">
+    <p><strong>Why this mattered more than most architectural choices.</strong> The caption embedding
+    is half the classifier input, and <strong>CLIP embeds nonsense confidently</strong>. Garbled OCR
+    does not add noise — it produces a <em>confidently wrong</em> text embedding that poisons the
+    fused representation.</p>
+  </div>
+  <p>
+    Two correction stages were layered on top. A <strong>T5 sequence-to-sequence corrector</strong>
+    handles structural damage — merged words, lost spacing — that spans token boundaries and so
+    cannot be fixed by token-level spellchecking. Then <strong>Levenshtein/spellchecker repair</strong>
+    fixes residual character-level errors. The edit-distance stage doubles as partial defense against
+    the deliberate misspellings used to evade keyword filters.
+  </p>
+</section>
+
+<section id="modeling">
+  <h2>Modeling</h2>
+
+  <h3>Design constraint: frozen encoders</h3>
+  <p>
+    Free-tier Colab could not fine-tune a 307M-parameter vision transformer, fixing the architecture
+    early: <strong>frozen CLIP encoders as feature extractors, plus a small trainable MLP head.</strong>
+    A compute decision before a modeling one — but embeddings compute <em>once</em> and cache, after
+    which every experiment trains in seconds. That is what made a three-encoder comparison and a
+    30-trial search affordable at all.
+  </p>
+
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+    I["Meme image"] --> VE["CLIP vision encoder<br><small>frozen</small>"]
+    C["OCR caption"] --> TE["CLIP text encoder<br><small>frozen · 77-token limit</small>"]
+    VE --> N1["L2 normalise"]
+    TE --> N2["L2 normalise"]
+    N1 --> CAT["concatenate"]
+    N2 --> CAT
+    CAT --> MLP["<b>MLP head</b><br>256 → 128 → 2<br><small>dropout 0.4</small>"]
+    MLP --> OUT["hateful / not"]
+    style VE fill:__NEUTRAL_FILL__,stroke:__NEUTRAL_STROKE__,color:__NEUTRAL_TEXT__
+    style TE fill:__NEUTRAL_FILL__,stroke:__NEUTRAL_STROKE__,color:__NEUTRAL_TEXT__
+    style MLP fill:#2a6f97,color:#fff,stroke:#1d4f6b
+    style OUT fill:#2f7d4f,color:#fff,stroke:#1f5636
+    </pre>
+    <div class="caption">Only the MLP head is trained. L2 normalisation before concatenation prevents the larger-magnitude modality from dominating the fused vector.</div>
+  </div>
+
+
+  <h3>How CLIP produces the embeddings</h3>
+  <p>
+    CLIP is pretrained contrastively on image–caption pairs: a vision encoder and a text encoder are
+    trained jointly so that matching pairs land close together in a shared embedding space and
+    mismatched pairs land far apart. That shared space is what makes it usable here — an image
+    vector and a text vector are directly comparable, and both carry semantic content rather than
+    raw pixels or tokens.
+  </p>
+
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart TB
+    subgraph PRE["CLIP pretraining · contrastive objective"]
+      direction LR
+      IM["Image"] --> VIT["Vision encoder<br><small>ViT or ResNet</small>"]
+      TX["Caption"] --> TXE["Text encoder<br><small>Transformer</small>"]
+      VIT --> EMB["<b>Shared embedding space</b><br><small>matching pairs pulled together,<br>mismatched pushed apart</small>"]
+      TXE --> EMB
+    end
+
+    subgraph USE["How PrideShield uses it · encoders frozen"]
+      direction LR
+      MI["Meme image"] --> FV["Vision encoder<br><small>frozen</small>"]
+      MC["OCR caption"] --> FT["Text encoder<br><small>frozen · 77 tokens</small>"]
+      FV --> V1["image vector<br><small>512 / 768 / 1024-d</small>"]
+      FT --> V2["text vector"]
+    end
+
+    PRE -.->|"pretrained weights"| USE
+
+    style EMB fill:#2a6f97,color:#fff,stroke:#1d4f6b
+    style VIT fill:__NEUTRAL_FILL__,stroke:__NEUTRAL_STROKE__,color:__NEUTRAL_TEXT__
+    style TXE fill:__NEUTRAL_FILL__,stroke:__NEUTRAL_STROKE__,color:__NEUTRAL_TEXT__
+    style FV fill:#b8791f,color:#fff,stroke:#8a5a17
+    style FT fill:#b8791f,color:#fff,stroke:#8a5a17
+    </pre>
+    <div class="caption">CLIP's contrastive pretraining creates a shared image–text space; PrideShield freezes both encoders and trains only a head on top of their concatenated output.</div>
+  </div>
+
+  <table>
+    <thead><tr><th>Encoder</th><th>Mechanism</th><th>Patch / input</th><th>Embed dim</th></tr></thead>
+    <tbody>
+      <tr><td><code>ViT-B/32</code></td><td>Vision Transformer — global self-attention over patches</td><td>32px patches @ 224px</td><td>512</td></tr>
+      <tr><td><code>ViT-L/14@336px</code></td><td>Larger ViT, finer patches, higher input resolution</td><td>14px patches @ 336px</td><td>768</td></tr>
+      <tr><td><code>RN50x64</code></td><td>Scaled ResNet — convolutional, local receptive fields</td><td>convolutional stack</td><td>1024</td></tr>
+    </tbody>
+  </table>
+  <p class="muted"><small>
+    Finer patches at higher resolution should help with small overlaid text, which is a plausible
+    reason <code>ViT-L/14@336px</code> won — though the design varies patch size, resolution and
+    parameter count together, so it does not isolate which factor mattered.
+  </small></p>
+
+  <h3>Encoder comparison</h3>
+  <p>All three were run through <strong>identical</strong> downstream conditions — same head, same search, same splits.</p>
+  <table>
+    <thead><tr><th>Encoder</th><th>Type</th><th>Embed dim</th><th>Params</th><th>Accuracy</th></tr></thead>
+    <tbody>
+      <tr><td><code>ViT-B/32</code></td><td>ViT, 32px patches</td><td>512</td><td>~88M</td><td>89.73%</td></tr>
+      <tr><td><strong><code>ViT-L/14@336px</code></strong></td><td>ViT, 14px patches</td><td>768</td><td>~307M</td><td><strong>93.94%</strong></td></tr>
+      <tr><td><code>RN50x64</code></td><td>Scaled ResNet (CNN)</td><td>1024</td><td>~336M</td><td>84.85%</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Class imbalance</h3>
+  <p>
+    At 80.9%/19.1%, an untreated model reaches ~80.9% by always predicting the majority class. Two
+    strategies were implemented — <strong>Focal Loss</strong>, written from scratch
+    (<code>(1 − p_t)^γ</code> down-weighting of easy examples), and class-weighted CrossEntropy.
+  </p>
+  <div class="callout">
+    <p><strong>Neither was assumed correct.</strong> The loss function was made a <em>search
+    parameter</em>. Optuna selected <strong>Focal Loss</strong> for <code>ViT-L/14@336px</code> but
+    <strong>class-weighted CrossEntropy</strong> for <code>ViT-B/32</code> — the right imbalance
+    strategy depended on the encoder, which fixing the loss in advance would have concealed.</p>
+  </div>
+</section>
+
+<section id="findings">
+  <h2>What Worked, What Didn't</h2>
+
+  <h3>Finding: more parameters did not mean better representations</h3>
+  <p>
+    <code>RN50x64</code> has the <strong>most parameters (~336M)</strong> and the <strong>widest
+    embedding (1024-d)</strong> — and finished <strong>last</strong>, ~5 points below a ViT with
+    roughly a quarter of its parameters.
+  </p>
+  <p>
+    Capacity was not the binding factor; representation quality was. A plausible reading: the task
+    requires relating overlaid text semantics to image semantics, and ViT's global self-attention
+    captures that relational structure in a way convolutional inductive bias does not. CLIP's ViT and
+    ResNet variants also differ in training dynamics beyond architecture, so this is an
+    interpretation rather than a proven mechanism.
+  </p>
+
+  <h3>Rejected variants</h3>
+  <table>
+    <thead><tr><th>Attempt</th><th>Outcome</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Transformer over tabular features</td><td>No gain</td><td>~924 examples cannot support the capacity; a concatenated embedding has no sequential structure for attention to exploit</td></tr>
+      <tr><td>MLP + BatchNorm</td><td>No consistent improvement</td><td>Small batches on a small dataset make BatchNorm statistics noisy</td></tr>
+      <tr><td>MLP + L2 + early stopping</td><td>No improvement</td><td>Dropout at 0.4 was already doing the regularization work</td></tr>
+      <tr><td>Deeper MLP heads</td><td>Overfit</td><td>Dataset size</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <p><strong>The consistent theme:</strong> every attempt to add capacity failed, and the binding
+    constraint was always dataset size — which locates the problem in the data, not the architecture.</p>
+  </div>
+
+  <h3>The fusion limitation</h3>
+  <p>
+    Concatenating two frozen embeddings is early fusion in its crudest form. The MLP sees two
+    independent vectors glued together and must infer their relationship from scratch, with no
+    mechanism for the modalities to attend to each other. For memes this is a real handicap:
+    hostility lives in the <em>interaction</em> between image and caption — a benign image paired
+    with a benign phrase producing a hateful whole. Cross-attention was out of reach on free-tier
+    compute.
+  </p>
+</section>
+
+<section id="future">
+  <h2>Future Work</h2>
+  <p>
+    This is 2024-era multimodal tooling. Frozen CLIP plus a head was defensible then; it is not what
+    anyone should build now — and the parts that moved fastest are precisely the parts this project
+    struggled with: multimodal fusion, OCR on stylized text, and labeling throughput.
+  </p>
+
+  <h3>Where the state of the art is</h3>
+  <table>
+    <thead><tr><th>Family</th><th>Relevance</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Qwen2.5-VL / Qwen3-VL</strong></td><td>Strong open-weight VLMs, notably good OCR and text-in-image handling</td></tr>
+      <tr><td><strong>InternVL</strong></td><td>Competitive open-weight multimodal reasoning, strong on fine visual detail</td></tr>
+      <tr><td><strong>LLaVA / LLaVA-NeXT</strong></td><td>Reference open architecture for visual instruction tuning</td></tr>
+      <tr><td><strong>Frontier APIs</strong></td><td>Strongest zero-shot multimodal reasoning, no training required</td></tr>
+    </tbody>
+  </table>
+  <p>
+    The relevant capability is not better image classification — it is that these models
+    <strong>read the text inside the image and reason about its relationship to the imagery in one
+    pass.</strong> That is exactly the operation concatenated CLIP embeddings cannot perform.
+  </p>
+
+  <h3>The rebuild, in order</h3>
+  <ol>
+    <li><strong>Establish the zero-shot baseline first.</strong> Measure a modern VLM zero-shot on the existing 1,320 examples, reporting macro metrics and AUPRC. This may end the project — if zero-shot matches 93.94%, the trained pipeline has no justification. <em>This inverts the original workflow: collect→train→evaluate becomes evaluate-what-exists→collect-only-where-it-fails.</em></li>
+    <li><strong>Break the labeling bottleneck.</strong> VLM pre-labeling with human adjudication of low-confidence cases could cover an order of magnitude more data for the same effort. Keep contested items as soft labels rather than dropping them.</li>
+    <li><strong>Replace the fusion mechanism.</strong> Fine-tune a VLM directly (LoRA/QLoRA) so the model attends jointly over image and caption natively — and drop the OCR correction stack entirely, since modern VLMs read meme text far better than 2024-era OCR.</li>
+    <li><strong>Fix the evaluation protocol.</strong> A like-for-like text-only ablation on the same corpus; k-fold CV with confidence intervals; macro metrics and AUPRC as headline figures.</li>
+    <li><strong>Evaluate what gates deployment.</strong> False-positive rate on reclaimed in-group language — the dominant failure mode, and where errors do the most harm.</li>
+    <li><strong>Explanation, not just classification.</strong> A VLM can be prompted to explain <em>why</em> a meme is hateful, producing an auditable rationale — far more useful for moderation than a scalar.</li>
+  </ol>
+
+  <div class="callout">
+    <p><strong>What carries forward regardless of tooling:</strong> deduplicate before splitting;
+    benchmark encoders under identical downstream conditions; treat the loss function as a search
+    parameter rather than an assumption; and quote accuracy against the majority-class floor.</p>
+  </div>
+</section>
+
+<section id="notes">
+  <h2>Notes &amp; Caveats</h2>
+  <div style="font-size:.92rem; color:var(--fg-muted)">
+    <p><strong>Scope.</strong> An undergraduate project on free-tier compute, using a self-collected
+    and self-labeled corpus of ~1,320 examples. The results hold within that scope.</p>
+
+    <p><strong>Reading the metrics.</strong> Accuracy is best read against the 80.9% majority-class
+    floor. Precision, recall and F1 are positive-class figures; macro averages are lower. ROC-AUC
+    (0.9030) is the most robust single number here.</p>
+
+    <p><strong>The multimodal comparison.</strong> The text baseline was trained on a public corpus
+    (FRENK-LGBT) rather than on meme captions, so the ~7-point gap reflects both the added modality
+    and the different training data — indicative, not a controlled ablation.</p>
+
+    <p><strong>Test set.</strong> ~198 examples on a single fixed split. The encoder ranking is
+    clear; the smaller gaps between them are not statistically established.</p>
+
+    <p><strong>Dataset composition.</strong> 80.9% positive, English-only, drawn from a narrow set of
+    platforms and a short time window. Items where the two labelers disagreed were dropped, so the
+    final set skews toward clearer-cut examples.</p>
+
+    <p><strong>Out of scope.</strong> Fairness and subgroup analysis, adversarial robustness,
+    calibration, and false-positive rate on reclaimed in-group language were not evaluated — the last
+    matters most for any deployed version. Ablations of the OCR-correction stack and the fusion
+    strategy were also not run.</p>
+
+    <p><strong>Dataset availability.</strong> The corpus is not publicly available. Release was not
+    authorized by the supervising faculty, and publishing scraped hate speech targeting a
+    marginalized community would be the wrong thing to do regardless.</p>
+
+    <p><strong>If you build on this work:</strong> treat the classifier as a triage aid, not an
+    adjudicator. False positives on reclaimed in-group language are the dominant failure mode for
+    this class of model, and silencing the community the system exists to protect is a worse error
+    than missing a slur.</p>
+  </div>
+</section>
+
+<footer>
+  <p>
+    <strong>PrideShield</strong> — undergraduate major project, Jaypee University of Information
+    Technology, July 2024 – May 2025. Primary author Ankush Singh; Arpan Chauhan and Shubh Saxena
+    credited as collaborators on the academic submission.
+  </p>
+  <p>
+    <a href="https://github.com/Vermillion-1/PrideShield">Repository</a> ·
+    <a href="https://github.com/Vermillion-1/PrideShield/tree/main/docs">Full documentation</a> ·
+    <a href="https://github.com/Vermillion-1/PrideShield/tree/main/src">Source components</a> ·
+    Apache-2.0
+  </p>
+</footer>
+
+</main>
+</div>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+const root = document.documentElement;
+const stored = localStorage.getItem('theme');
+if (stored) root.setAttribute('data-theme', stored);
+
+const isDark = () => {
+  const t = root.getAttribute('data-theme');
+  if (t) return t === 'dark';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+};
+
+const sources = [...document.querySelectorAll('pre.mermaid')].map(el => el.textContent);
+
+async function render() {
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: isDark() ? 'dark' : 'default',
+    themeVariables: { fontFamily: 'Inter, sans-serif', fontSize: '14px' },
+    flowchart: { curve: 'basis', htmlLabels: true },
+    sequence: { actorMargin: 42, width: 150 }
+  });
+  const dark = isDark();
+  const palette = dark
+    ? { NEUTRAL_FILL: '#1f3b4d', NEUTRAL_STROKE: '#3d6a85', NEUTRAL_TEXT: '#e6e9ee' }
+    : { NEUTRAL_FILL: '#dce8f0', NEUTRAL_STROKE: '#9dbdd1', NEUTRAL_TEXT: '#1a1d21' };
+
+  const nodes = document.querySelectorAll('pre.mermaid');
+  for (let i = 0; i < nodes.length; i++) {
+    const id = 'mmd-' + i + '-' + Date.now();
+    let src = sources[i];
+    for (const [k, v] of Object.entries(palette)) {
+      src = src.replaceAll('__' + k + '__', v);
+    }
+    try {
+      const { svg } = await mermaid.render(id, src);
+      nodes[i].innerHTML = svg;
+      nodes[i].removeAttribute('data-processed');
+    } catch (e) {
+      nodes[i].innerHTML = '<small style="color:var(--fg-muted)">diagram failed to render</small>';
+    }
+  }
+}
+render();
+
+// scroll-spy: highlight the section currently in view
+const tocLinks = [...document.querySelectorAll('aside a[href^="#"]')];
+const watched  = tocLinks
+  .map(a => document.querySelector(a.getAttribute('href')))
+  .filter(Boolean);
+if (watched.length) {
+  const spy = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return;
+      tocLinks.forEach(a => a.classList.toggle(
+        'active', a.getAttribute('href') === '#' + en.target.id
+      ));
+    });
+  }, { rootMargin: '-70px 0px -70% 0px', threshold: 0 });
+  watched.forEach(sec => spy.observe(sec));
+}
+
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const next = isDark() ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  render();
+});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (!root.getAttribute('data-theme')) render();
+});
+</script>
+</body>
+</html>

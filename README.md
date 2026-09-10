@@ -14,6 +14,9 @@ and **13 points above the majority-class floor** on a hand-built, hand-labeled c
   <img src="docs/figures/results.png" alt="Model comparison and parameter-vs-accuracy scatter" width="880">
 </p>
 
+📖 **[Read the full technical documentation →](https://vermillion-1.github.io/PrideShield/)**  
+<sub>Dataset construction, preprocessing, CLIP architecture, encoder comparison and evaluation — with diagrams and dataset statistics.</sub>
+
 > *Archived research code, developed July 2024 – May 2025 as an undergraduate major project at
 > JUIT. Read-only: the dataset is not publicly available and notebooks contain Colab-specific paths.
 > See [`docs/05_future_work.md`](docs/05_future_work.md) for how this would be built today.*
