@@ -266,8 +266,7 @@ logger at the time.
 ## Citation
 
 ```bibtex
-@software{singh_prideshield_2025,
-  author  = {Singh, Ankush},
+@software{prideshield_2025,
   title   = {{PrideShield: Multimodal Detection of Anti-LGBTQ+ Hate Speech in Memes}},
   year    = {2025},
   url     = {https://github.com/Vermillion-1/PrideShield},
@@ -277,10 +276,8 @@ logger at the time.
 
 ## Acknowledgements
 
-Developed by **Ankush Singh** (primary author — data pipeline, preprocessing, modeling,
-experimentation). Submitted as an undergraduate major project at Jaypee University of Information
-Technology under Prof. Dr. Vivek Kumar Sehgal and Dr. Kushal Kanwar; **Arpan Chauhan** and
-**Shubh Saxena** are credited as project collaborators on the academic submission.
+A group project, submitted as an undergraduate major project at Jaypee University of Information
+Technology under Prof. Dr. Vivek Kumar Sehgal and Dr. Kushal Kanwar.
 
 ## License
 
