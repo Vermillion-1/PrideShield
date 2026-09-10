@@ -6,7 +6,7 @@ Text baseline, multimodal architecture, encoder comparison, and the variants tha
 
 ## Design constraint: frozen encoders
 
-Free-tier Colab could not fine-tune a 307M-parameter vision transformer, fixing the architecture
+Free-tier Colab could not fine-tune a 304M-parameter vision transformer, fixing the architecture
 early:
 
 > **Frozen CLIP encoders as feature extractors + a small trainable MLP head.**
@@ -45,29 +45,46 @@ OCR text --> CLIP text encoder   (frozen) ----> L2-norm --+
 
 ### Classification head
 
+The searched best configuration for `ViT-L/14@336px`:
+
 ```
-Linear(embed_dim, 256) -> ReLU -> Dropout(0.4)
-    -> Linear(256, 128) -> ReLU -> Dropout(0.4)
-        -> Linear(128, 2)
+Linear(2*embed_dim, 512) -> LeakyReLU -> Dropout(0.4)
+    -> Linear(512, 256)  -> LeakyReLU -> Dropout(0.4)
+        -> Linear(256, 128) -> LeakyReLU -> Dropout(0.4)
+            -> Linear(128, 2)
 ```
 
-Deliberately small — with ~924 training examples a larger head overfits immediately. Extracted to
+Note the input width is **twice** the encoder's embedding dim, since image and text vectors are
+concatenated. `src/models.py` takes the hidden widths as a parameter; its constructor defaults
+(`(256, 128)`, ReLU) are library defaults, not this configuration.
+
+Deliberately small — with 924 training examples a larger head overfits immediately. Extracted to
 [`../src/models.py`](../src/models.py).
 
 ## Encoder comparison
 
 All three run through **identical** downstream conditions — same head, same search, same splits.
 
-| Encoder | Type | Embed dim | Params | Accuracy |
+| Encoder | Type | Embed dim | Vision params | Accuracy |
 |---|---|---|---|---|
-| `ViT-B/32` | ViT, 32px patches | 512 | ~88M | 89.73% |
-| **`ViT-L/14@336px`** | ViT, 14px patches, 336px input | 768 | ~307M | **93.94%** |
-| `RN50x64` | Scaled ResNet (CNN) | 1024 | ~336M | 84.85% |
+| `ViT-B/32` | ViT, 32px patches | 512 | 87.8M | 89.73% |
+| **`ViT-L/14@336px`** | ViT, 14px patches, 336px input | 768 | 304.3M | **93.94%** |
+| `RN50x64` | Scaled ResNet (CNN) | 1024 | 420.4M | 84.85% |
+
+Parameter counts are the CLIP **vision tower** only, computed with `open_clip`
+(`sum(p.numel() for p in model.visual.parameters())`); full model sizes including the text tower are
+151.3M, 427.9M and 623.3M respectively.
 
 ### Finding: the CNN lost despite being the largest
 
 `RN50x64` has the **most parameters** and the **widest embedding**, and finished **last** — ~5 points
-below `ViT-B/32`, which has roughly a quarter of its parameters.
+below `ViT-B/32`, which has roughly a fifth of its parameters, and ~9 points below
+`ViT-L/14@336px`, which is ~28% smaller.
+
+> **Reproducibility note.** The cached `RN50x64` embedding CSVs are corrupt: they were serialised
+> with NumPy's abbreviated string repr, so each 1,024-d vector was written as six values and an
+> ellipsis (`[ 0.00955 0.01671 0.009155 ... 0.002924 0.0062 -0.01504 ]`). The ViT caches are intact.
+> The 84.85% figure cannot be reproduced from the saved artifacts.
 
 Capacity was not the binding factor; **representation quality** was. A plausible reading: the task
 requires relating overlaid text semantics to image semantics, and ViT's global self-attention

@@ -70,13 +70,16 @@ pinned per Chrome version. **A meaningful share of project time went to repairin
 
 | Stage | Count |
 |---|---|
-| Raw collected (all sources) | ~1,700 |
-| After perceptual-hash deduplication | ~1,690 |
+| After perceptual-hash deduplication | **1,696** (476 MB) |
+| Reaching OCR extraction | 1,405 |
 | Reaching labeling | 1,667 |
 | **Final dataset** | **1,320** |
 
-The 1,667 → 1,320 drop is label reconciliation: each item was labeled independently by two people,
-and disagreements were dropped rather than adjudicated (~21% of the corpus).
+The pre-deduplication raw count was not preserved in the surviving artifacts, so no deduplication
+rate is claimed. OCR coverage of 1,405 of 1,696 images is also unexplained by what survives — most
+likely unreadable or non-meme files removed before extraction — and is recorded rather than smoothed
+over. The 1,667 → 1,320 drop is broken down under
+[Splits and class balance](#splits-and-class-balance) below.
 
 ## Deduplication
 
@@ -87,12 +90,39 @@ a model score well by memorizing. Handled with perceptual hashing; see
 
 ## Splits and class balance
 
-**70/15/15** → ~924 train / 198 validation / 198 test.
+**70/15/15** → 924 train / 198 validation / 198 test.
 
 **Class distribution: 80.9% positive / 19.1% negative** (1,068 / 252). This is inverted relative to
-real moderation traffic, where most content is benign — so a majority-class baseline already scores
-**80.9%**, and accuracy must be read against that floor. The skew arose naturally from the
-collection strategy: we searched for hateful content, so we found it.
+real moderation traffic, where most content is benign, so a majority-class baseline already scores
+well and accuracy must be read against that floor. The skew arose naturally from the collection
+strategy: we searched for hateful content, so we found it.
+
+**The splits are not stratified**, and the balance drifts across them:
+
+| Split | Rows | Hateful | Not hateful | % hateful |
+|---|---|---|---|---|
+| Train | 924 | 737 | 187 | 79.76% |
+| Validation | 198 | 166 | 32 | 83.84% |
+| **Test** | **198** | **165** | **33** | **83.33%** |
+
+So the reference floor for test accuracy is **83.33%**, not the corpus-level 80.9%. Stratified
+splitting would have cost nothing and should have been used.
+
+### How 1,667 became 1,320
+
+| Stage | Count | Share |
+|---|---|---|
+| Dual-annotated | 1,667 | 100% |
+| Annotators agreed | 1,448 | **86.9%** |
+| Dropped — annotators disagreed | 219 | 13.1% |
+| Dropped — both marked "cannot judge" (`-1`) | 110 | 6.6% |
+| Dropped — no usable image or caption downstream | 18 | 1.1% |
+| **Final dataset** | **1,320** | **79.2%** |
+
+Annotation used three codes — hateful (`1`), not hateful (`0`), and a third code for items that
+could not be judged (`-1`). Dropping the 219 disagreements rather than adjudicating them removes
+precisely the ambiguous cases, so the final corpus skews toward clear-cut examples and every
+accuracy figure is an accuracy on an easier distribution than the real one.
 
 ## Text data (baseline only)
 

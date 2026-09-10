@@ -1,6 +1,6 @@
 # 02 — Preprocessing & Data Cleaning
 
-Turning ~1,700 raw scraped images into a usable multimodal training table.
+Turning 1,696 deduplicated scraped images into a usable multimodal training table.
 
 ---
 

@@ -21,7 +21,7 @@ Focal Loss, layers `[512, 256, 128]`), evaluated on the held-out test split (~19
 
 | Model | Modality | Accuracy |
 |---|---|---|
-| Majority-class baseline | — | ~80.9% |
+| Majority-class baseline (test split) | — | 83.33% |
 | CLIP `RN50x64` + MLP | Multimodal | 84.85% |
 | Text-only transformer (FRENK) | Text | ~86.87% |
 | CLIP `ViT-B/32` + MLP | Multimodal | 89.73% |
@@ -31,11 +31,18 @@ Focal Loss, layers `[512, 256, 128]`), evaluated on the held-out test split (~19
 
 ## Reading the numbers
 
-**Against the floor, not zero.** The dataset is 80.9% positive, so a constant predictor scores
-80.9%. The achievement is **+13 points over trivial**, not "93.94%". By the same measure `RN50x64`
-at 84.85% is only ~4 points above a constant predictor — which reframes it from "reasonable" to
-"barely working". **Any accuracy figure from this project should be quoted alongside the 80.9%
-floor.**
+**Against the floor, not zero.** The split is not stratified: the corpus is 80.9% positive but the
+**test split is 165 / 33 = 83.33% positive**, so a constant predictor scores 83.33% on the split
+actually evaluated. The achievement is **+10.6 points over trivial**, not "93.94%". By the same
+measure `RN50x64` at 84.85% is only **~1.5 points** above a constant predictor — which reframes it
+from "reasonable" to "barely working". **Any accuracy figure from this project should be quoted
+alongside the 83.33% test-split floor.**
+
+**The reported metrics do not fully reconcile.** On 198 examples with 165 positives, an accuracy of
+93.94% means exactly 12 errors; precision 96.91% with recall 94.58% implies ~156 TP / 9 FN / 5 FP,
+i.e. 14 errors and 92.93% accuracy. No integer confusion matrix satisfies all four figures, so at
+least one is misreported in the source. They are reproduced as submitted rather than adjusted — the
+confusion matrix itself was not preserved. **Accuracy and ROC-AUC are the figures to rely on.**
 
 **ROC-AUC 0.9030 is the most honest single number.** Threshold-independent and less sensitive to
 class imbalance than accuracy, it is the figure that best supports "this model learned something
@@ -67,7 +74,7 @@ general LGBT hate-speech corpus.* What it does not support: *adding vision yield
 <sub>
 
 **Metric choice.** Precision/recall/F1 were computed with `average="binary"` — i.e. for the majority
-(hateful) class only, which is the easy class at 80.9% prevalence. Macro-averaged figures are
+(hateful) class only, which is the easy class at 83.33% test-split prevalence. Macro-averaged figures are
 materially lower and should have been the headline. AUPRC is generally more informative than ROC-AUC
 under imbalance and was not computed.
 

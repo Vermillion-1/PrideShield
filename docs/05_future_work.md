@@ -44,7 +44,7 @@ domain-specific supplement — the reverse of what was done here.
 
 ### PEFT removed the compute wall
 
-The hardest constraint was compute: a 307M-parameter encoder could not be fine-tuned on free-tier
+The hardest constraint was compute: a 304M-parameter encoder could not be fine-tuned on free-tier
 Colab, which is why encoders stayed frozen. **LoRA / QLoRA** now make it feasible to fine-tune
 multi-billion-parameter VLMs on a single consumer GPU via low-rank adapters over a quantized base.
 The constraint that shaped this entire architecture is largely gone.
@@ -55,7 +55,7 @@ The constraint that shaped this entire architecture is largely gone.
 zero-shot and few-shot on the existing 1,320 examples, reporting macro metrics and AUPRC. This may
 end the project — if zero-shot matches 93.94%, the trained pipeline has no justification. If it
 doesn't, it becomes the bar every subsequent model must beat, which is far more meaningful than the
-80.9% floor. *This inverts the original workflow: 2024 was collect → train → evaluate; 2026 is
+83.33% test-split floor. *This inverts the original workflow: 2024 was collect → train → evaluate; 2026 is
 evaluate what exists → collect only where it fails.*
 
 **2. Break the labeling bottleneck.** Dataset size bounded nearly every result, and labeling
@@ -100,8 +100,10 @@ Not everything is superseded. These hold regardless of tooling:
   it was selected for one encoder and not another.
 - **Independent dual labeling** on subjective tasks, treating the disagreement rate as a measurement
   of task difficulty rather than an inconvenience.
-- **Quote accuracy against the majority-class floor.** A discipline that survives any architecture
-  change.
+- **Quote accuracy against the majority-class floor of the split you actually evaluated** — not the
+  corpus-level figure, which can differ when splits are unstratified. A discipline that survives any
+  architecture change.
+- **Stratify your splits.** It costs nothing and removes an entire class of misreading.
 
 ---
 
